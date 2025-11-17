@@ -1,3 +1,4 @@
+from languages import LANG, detect_lang
 import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -13,44 +14,52 @@ dp = Dispatcher()
 # /start
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    await message.answer("🤖 Madrid assistant is online, Սաքո։ Ինչ պետք է՝ ասա։")
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang]["start"])
 
 # /news
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
     news = fetch_madrid_news()
-    await message.answer(f"🌇 Madrid News:\n\n{news}")
+    await message.answer(f"{LANG[lang]['news']}\n\n{news}")
 
-# /offer (user gives job offer)
+# /offer
 @dp.message(F.text.startswith("/offer "))
 async def offer_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
     text = message.text.replace("/offer ", "")
     add_offer(message.from_user.id, text)
-    await message.answer("📌 Գործի առաջարկը պահվեց, Սաքո։")
+    await message.answer(LANG[lang]["offer_saved"])
 
-# /request (user needs a job)
+# /request
 @dp.message(F.text.startswith("/request "))
 async def request_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
     text = message.text.replace("/request ", "")
     add_request(message.from_user.id, text)
-    await message.answer("🔎 Գործի որոնումն ավելացված է, Սաքո։")
+    await message.answer(LANG[lang]["request_saved"])
 
-# /match (find job matches)
+# /match
 @dp.message(Command("match"))
 async def match_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
     matches = find_matches()
+
     if not matches:
-        await message.answer("🤷‍♂️ Համապատասխանություններ չկան։")
+        await message.answer(LANG[lang]["no_matches"])
         return
 
-    msg = "🎯 Matches Found:\n\n"
+    msg = LANG[lang]["matches"] + "\n\n"
     for req, off in matches:
         msg += f"👤 Request: {req['text']}\n💼 Offer: {off['text']}\n---\n"
+
     await message.answer(msg)
 
-# echo fallback
+# fallback
 @dp.message(F.text)
 async def echo(message: types.Message):
+    # Սա հետո կդարձնենք բազմալեզու
     await message.answer("Քեզ լսում եմ, Սաքո։")
 
 async def main():
