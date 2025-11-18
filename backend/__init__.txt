@@ -12,9 +12,7 @@ your-project/
 ├── simplified/
 │   ├── __init__.py
 │   ├── post_digest.py
-│   ├── schedule.py
-│   └── (եթե ուզում ես, լրացուցիչ ֆայլեր)
+│   └── schedule.py
 │
 ├── README.md
 ├── .gitignore
-
