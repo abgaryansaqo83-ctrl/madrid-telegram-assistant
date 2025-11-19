@@ -16,7 +16,7 @@ your-project/
 │   ├── news.py             # Functions to fetch and parse news feeds
 │   ├── jobs.py             # Functions to handle job offers, requests, and matching
 │   ├── requirements.txt    # Python dependencies for the backend
-│   └── .env.example         # Template for environment variables
+│   └── .env.               # Template for environment variables
 │
 ├── simplified/
 │   ├── __init__.py         # Marks simplified as a Python package
