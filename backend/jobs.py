@@ -1,19 +1,15 @@
 import json
 import os
 
-DB_FILE = os.path.join(os.path.dirname(__file__), "jobs_db.json")
+DB_FILE = "jobs_db.json"
 
-# Creates DB if it does not exist
 if not os.path.exists(DB_FILE):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump({"offers": [], "requests": []}, f)
 
 def load_db():
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"offers": [], "requests": []}
+    with open(DB_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_db(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -34,9 +30,20 @@ def find_matches():
     matches = []
     
     for req in db["requests"]:
-        req_words = req["text"].lower().split()
         for off in db["offers"]:
-            if any(w in off["text"].lower() for w in req_words):
+            if any(w in off["text"].lower() for w in req["text"].lower().split()):
                 matches.append((req, off))
 
     return matches
+
+def get_last_posted_items():
+    if os.path.exists("posted_items.json"):
+        with open("posted_items.json", "r", encoding="utf-8") as f:
+            return set(json.load(f))
+    return set()
+
+def save_posted_item(key):
+    last = get_last_posted_items()
+    last.add(key)
+    with open("posted_items.json", "w", encoding="utf-8") as f:
+        json.dump(list(last), f, ensure_ascii=False, indent=2)
