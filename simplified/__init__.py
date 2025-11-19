@@ -1,18 +1,1 @@
-your-project/
-│
-├── backend/
-│   ├── __init__.py
-│   ├── bot.py
-│   ├── languages.py
-│   ├── news.py
-│   ├── jobs.py
-│   ├── requirements.txt
-│   └── .env.example
-│
-├── simplified/
-│   ├── __init__.py
-│   ├── post_digest.py
-│   └── schedule.py
-│
-├── README.md
-├── .gitignore
+
