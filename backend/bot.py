@@ -1,13 +1,16 @@
-from languages import LANG, detect_lang
+from .languages import LANG, detect_lang
 import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram import F
 
-from news import fetch_madrid_news
-from jobs import add_offer, add_request, find_matches
+from .news import fetch_madrid_news
+from .jobs import add_offer, add_request, find_matches
 
 TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN missing in environment variables")
+
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
@@ -59,7 +62,6 @@ async def match_cmd(message: types.Message):
 # fallback
 @dp.message(F.text)
 async def echo(message: types.Message):
-    # Սա հետո կդարձնենք բազմալեզու
     await message.answer("Քեզ լսում եմ, Սաքո։")
 
 async def main():
