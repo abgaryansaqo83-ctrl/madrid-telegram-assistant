@@ -1,8 +1,8 @@
 # backend/bot.py
 
-from .languages import LANG, detect_lang
-from .news import fetch_madrid_news
-from .jobs import add_offer, add_request, find_matches
+from backend.languages import LANG, detect_lang
+from backend.news import fetch_madrid_news
+from backend.jobs import add_offer, add_request, find_matches
 
 import os
 import asyncio
@@ -10,9 +10,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram import F
 
-# Load environment variables
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv()  # Render automatically loads env variables
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
