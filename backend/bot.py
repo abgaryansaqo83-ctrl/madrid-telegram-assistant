@@ -140,7 +140,8 @@ async def help_cmd(message: types.Message):
 # fallback
 @dp.message(F.text)
 async def echo(message: types.Message):
-    await message.answer("Քեզ լսում եմ, Սաքո։")
+    await message.answer(""Слушаю вас. Опишите, что вам нужно."
+։")
 
 async def main():
     try:
