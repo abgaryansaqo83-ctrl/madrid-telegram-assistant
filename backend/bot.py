@@ -124,24 +124,17 @@ async def match_cmd(message: types.Message):
 async def help_cmd(message: types.Message):
     try:
         lang = detect_lang(message.from_user.language_code)
-        help_text = """
-🤖 Available commands:
-/start - Start bot
-/news - Get Madrid news
-/offer [text] - Post job offer
-/request [text] - Post job request
-/match - Find job matches
-/help - Show this help
-        """
-        await message.answer(help_text)
+        await message.answer(LANG[lang]["help"])
+        logger.info(f"User {message.from_user.id} requested help")
     except Exception as e:
         logger.error(f"Error in help_cmd: {e}")
+        await message.answer("Error showing help")
 
-# fallback
+# Fallback handler for unrecognized messages
 @dp.message(F.text)
 async def echo(message: types.Message):
-    await message.answer(""Слушаю вас. Опишите, что вам нужно."
-։")
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang].get("help", "Use /help to see available commands"))
 
 async def main():
     try:
