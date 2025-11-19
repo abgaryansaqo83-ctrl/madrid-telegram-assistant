@@ -41,6 +41,65 @@ async def start_cmd(message: types.Message):
     except Exception as e:
         logger.error(f"Error in start_cmd: {e}")
         await message.answer("Error processing command")
+# Add import at top
+from backend.matching import (
+    parse_housing_offer, 
+    find_matching_requests,
+    find_matching_offers,
+    is_housing_offer,
+    is_housing_request
+)
+
+# Update echo function
+@dp.message(F.text)
+async def handle_message(message: types.Message):
+    # Save conversation to memory
+    try:
+        keywords = save_message_with_analysis(message.from_user.id, message.text)
+        
+        # Check if housing-related
+        if keywords.get('housing'):
+            # Determine if offer or request
+            if is_housing_offer(message.text):
+                logger.info(f"Housing offer detected: {message.text[:50]}")
+                offer_data = parse_housing_offer(message.text)
+                
+                # Find matching requests
+                matches = find_matching_requests(offer_data)
+                
+                if matches:
+                    # Reply to group
+                    match_count = len(matches)
+                    await message.reply(
+                        f"🏠 **{match_count} пользователей** ищут похожее жильё!\n\n"
+                        f"Администратор свяжет вас с заинтересованными.",
+                        parse_mode="HTML"
+                    )
+                    logger.info(f"Replied with {match_count} matches")
+            
+            elif is_housing_request(message.text):
+                logger.info(f"Housing request detected: {message.text[:50]}")
+                request_data = parse_housing_offer(message.text)
+                
+                # Find matching offers
+                matches = find_matching_offers(request_data)
+                
+                if matches:
+                    # Reply to group
+                    match_count = len(matches)
+                    await message.reply(
+                        f"🏠 **{match_count} предложений** по вашим параметрам найдено!\n\n"
+                        f"Администратор свяжет вас с владельцами.",
+                        parse_mode="HTML"
+                    )
+                    logger.info(f"Replied with {match_count} matches")
+    
+    except Exception as e:
+        logger.error(f"Error in handle_message: {e}")
+    
+    # Still show admin contact
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang]["contact_admin"])
 
 # /news
 @dp.message(Command("news"))
