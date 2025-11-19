@@ -1,13 +1,7 @@
 your-project/
 │
-├── backend/
-│   ├── __init__.py
-│   ├── bot.py
-│   ├── languages.py
-│   ├── news.py
-│   ├── jobs.py
-│   ├── requirements.txt
-│   └── .env.example
+│
+│   
 │
 ├── simplified/
 │   ├── __init__.py
@@ -16,3 +10,10 @@ your-project/
 │
 ├── README.md
 ├── .gitignore
+├── __init__.py
+├── bot.py
+├── languages.py
+├── news.py
+├── jobs.py
+├── requirements.txt
+└── .env.example
