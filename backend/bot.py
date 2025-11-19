@@ -12,6 +12,18 @@ from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches
 from backend.news import fetch_madrid_news
 
+# Add import at top
+from backend.memory import save_message_with_analysis
+
+# Update echo function
+@dp.message(F.text)
+async def echo(message: types.Message):
+    # Save conversation to memory
+    save_message_with_analysis(message.from_user.id, message.text)
+    
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang].get("help", "Use /help to see available commands"))
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
