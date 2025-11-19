@@ -1,3 +1,14 @@
+# backend/languages.py
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Supported languages
+SUPPORTED_LANGUAGES = ["ru", "es", "en"]
+DEFAULT_LANGUAGE = "ru"
+
+# Language strings for bot responses
 LANG = {
     "ru": {
         "start": "🤖 Мадридский помощник на связи. Чем помочь?",
@@ -78,6 +89,7 @@ LANG = {
         """
     }
 }
+
 def detect_lang(user_lang: str = None) -> str:
     """
     Detect user's language from Telegram language code
