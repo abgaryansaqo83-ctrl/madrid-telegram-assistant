@@ -8,7 +8,7 @@ backend/
   news.py
   jobs.py
   requirements.txt
-  .env.example
+  .env
 
 simplified/
   post_digest.py
