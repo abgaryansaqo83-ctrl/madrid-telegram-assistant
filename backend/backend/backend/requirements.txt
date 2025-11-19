@@ -1,7 +1,0 @@
-aiogram==3.4.1
-requests==2.31.0
-beautifulsoup4==4.12.2
-feedparser==6.0.10
-pytz==2024.1
-apscheduler==3.10.4
-python-dotenv==1.0.1
