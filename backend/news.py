@@ -13,11 +13,10 @@ SPAIN_FEEDS = [
     {"url": "https://www.rt.com/rss/news/", "lang": "ru", "name": "RT"},
 ]
 
-MADRID_FEEDS = {
-    "Madrid": "https://elpais.com/rss/ccaa/madrid.xml",
-    "Comunidad Madrid": "https://www.abc.es/rss/feeds/abc_Madrid.xml",
-    "Events": "https://www.madrid.es/portales/munimadrid/es/Inicio/Actualidad/?kxml=Rss",
-}
+MADRID_FEEDS = [
+    {"url": "https://elpais.com/rss/ccaa/madrid.xml", "name": "El País Madrid", "lang": "es"},
+    {"url": "https://www.abc.es/rss/atom/espana/madrid", "name": "ABC Madrid", "lang": "es"},
+]
 
 # Cultural event sources (static for now, could be made dynamic)
 CULTURAL_EVENTS = [
