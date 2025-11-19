@@ -27,7 +27,7 @@ LANG = {
 /start - Запустить бота
 /news - Новости Мадрида
 /help - Показать эту справку
-
+        """
     },
     "es": {
         "start": "🤖 Asistente de Madrid en línea. ¿En qué puedo ayudar?",
@@ -46,7 +46,7 @@ LANG = {
 /start - Iniciar el bot
 /news - Noticias de Madrid
 /help - Mostrar esta ayuda
-
+        """
     },
     "en": {
         "start": "🤖 Madrid assistant online. How can I help?",
@@ -65,7 +65,7 @@ LANG = {
 /start - Start the bot
 /news - Madrid news
 /help - Show this help
-
+        """
     }
 }
 
