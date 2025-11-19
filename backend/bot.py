@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches
 from backend.news import fetch_madrid_news
+from backend.database import init_db  # ← ADD THIS
+from backend.memory import save_message_with_analysis  # ← ADD THIS
 
 # Add import at top
 from backend.memory import save_message_with_analysis
@@ -155,16 +157,27 @@ async def help_cmd(message: types.Message):
 # Fallback handler for unrecognized messages
 @dp.message(F.text)
 async def echo(message: types.Message):
+    # Save conversation to memory
+    try:
+        save_message_with_analysis(message.from_user.id, message.text)
+    except Exception as e:
+        logger.error(f"Error saving conversation: {e}")
+    
     lang = detect_lang(message.from_user.language_code)
     await message.answer(LANG[lang].get("help", "Use /help to see available commands"))
 
 async def main():
     try:
+        # Initialize database
+        init_db()
+        logger.info("Database initialized")
+        
         logger.info("Starting bot...")
         await dp.start_polling(bot, skip_updates=True)
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
         raise
+
 
 if __name__ == "__main__":
     asyncio.run(main())
