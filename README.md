@@ -1,24 +1,14 @@
-# madrid-telegram-assistant
-Telegram bot assistant for Madrid group (news auto-fetch, job matching, admin tools).
+# Madrid Telegram Assistant
+
+Intelligent Telegram bot for Madrid community group with auto-posting news, job matching, and admin tools.
+
+## Features
+
+- 🤖 **Multi-language Support**: Russian, Spanish, English, Armenian
+- 📰 **Auto News Posting**: Madrid news, cultural events
+- 💼 **Job Matching**: Post offers/requests and find matches
+- 🔔 **Scheduled Digests**: Automatic updates at configured intervals
+- 🌐 **RSS Feed Integration**: Real-time news from multiple sources
 
 ## Project Structure
-backend/
-  bot.py
-  languages.py
-  news.py
-  jobs.py
-  requirements.txt
-  .env
 
-simplified/
-  post_digest.py
-  schedule.py
-
-README.md
-.gitignore
-
-## Getting Started
-1. Clone repository:
-```bash
-git clone <repository_url>
-cd your-project
