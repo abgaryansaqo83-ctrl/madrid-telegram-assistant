@@ -23,6 +23,16 @@ async def echo(message: types.Message):
     
     lang = detect_lang(message.from_user.language_code)
     await message.answer(LANG[lang].get("help", "Use /help to see available commands"))
+async def main():
+    try:
+        logger.info("Starting bot...")
+        await dp.start_polling(bot, skip_updates=True)
+    except Exception as e:
+        logger.error(f"Critical error in main: {e}")
+        raise
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 # Setup logging
 logging.basicConfig(
