@@ -59,8 +59,8 @@ mkdir -p data
 Create a `.env` file in the project root:
 
 ```
-BOT_TOKEN=your_telegram_bot_token
-CHAT_ID=-1001234567890
+BOT_TOKEN=8281034149:AAGVPUqGbVAq0eefiY_2HEbqzEM21_k-hTk
+CHAT_ID=-1003433432009
 DIGEST_INTERVAL=30
 SCHEDULE_TYPE=interval
 ```
