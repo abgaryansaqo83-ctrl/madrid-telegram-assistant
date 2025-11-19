@@ -1,7 +1,7 @@
-aiogram==3.4.1
-requests==2.31.0
-beautifulsoup4==4.12.2
-feedparser==6.0.10
-pytz==2024.1
-apscheduler==3.10.4
-python-dotenv==1.0.1
+aiogram==3.4.1          # Telegram bot framework
+requests==2.31.0        # HTTP requests
+beautifulsoup4==4.12.2  # HTML parsing
+feedparser==6.0.10      # RSS feeds
+pytz==2024.1            # Timezone support
+apscheduler==3.10.4     # Scheduling tasks
+python-dotenv==1.0.1    # .env environment variables
