@@ -1,8 +1,8 @@
 # backend/bot.py
 
 from backend.languages import LANG, detect_lang
-from backend.news import fetch_madrid_news
-from backend.jobs import add_offer, add_request, find_matches
+from backend.jobs import process_jobs
+from backend.news import get_news
 
 import os
 import asyncio
