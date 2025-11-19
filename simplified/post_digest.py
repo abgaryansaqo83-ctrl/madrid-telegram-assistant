@@ -1,56 +1,225 @@
-import datetime
-from .news import fetch_madrid_news, fetch_cultural_events
-from .jobs import get_last_posted_items, save_posted_item
-from aiogram import Bot
+# simplified/post_digest.py
+
 import os
+import logging
+from datetime import datetime
+from typing import List, Dict, Optional
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
+from dotenv import load_dotenv
 
-def fetch_new_restaurants(last_posted_links=None, max_items=2):
-    return []  # stub, if restaurants module missing
+# Import from backend module (not relative imports for simplified)
+from backend.news import fetch_madrid_news, fetch_spain_news, fetch_cultural_events
+from backend.jobs import get_last_posted_items, save_posted_item
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Configuration
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("BOT_TOKEN missing")
-bot = Bot(token=TOKEN)
-CHAT_ID = int(os.getenv("CHAT_ID", "-1001234567890"))
+    raise ValueError("BOT_TOKEN missing in environment variables")
 
-def restaurant_score(restaurant):
+CHAT_ID = os.getenv("CHAT_ID")
+if not CHAT_ID:
+    raise ValueError("CHAT_ID missing in environment variables")
+
+try:
+    CHAT_ID = int(CHAT_ID)
+except ValueError:
+    raise ValueError(f"CHAT_ID must be a valid integer, got: {CHAT_ID}")
+
+# Initialize bot
+bot = Bot(token=TOKEN)
+
+# Digest configuration
+MAX_MESSAGE_LENGTH = 4000
+MAX_ITEMS_PER_DIGEST = 10
+MAX_NEWS_ITEMS = 3
+MAX_CULTURAL_ITEMS = 2
+MAX_RESTAURANT_ITEMS = 2
+
+def fetch_new_restaurants(last_posted_links: set = None, max_items: int = 2) -> List[Dict]:
+    """
+    Fetch new restaurants (stub for future implementation)
+    
+    Args:
+        last_posted_links: Set of already posted links
+        max_items: Maximum items to fetch
+        
+    Returns:
+        List of restaurant items (empty for now)
+    """
+    # TODO: Implement restaurant scraping/API integration
+    logger.debug("Restaurant fetching not yet implemented")
+    return []
+
+def restaurant_score(restaurant: Dict) -> int:
+    """
+    Calculate score for restaurant prioritization
+    
+    Args:
+        restaurant: Restaurant dictionary with rating and reviews
+        
+    Returns:
+        Score value (higher is better)
+    """
     score = 0
-    if restaurant.get("rating", 0) >= 4.2:
+    
+    rating = restaurant.get("rating", 0)
+    if rating >= 4.5:
+        score += 3
+    elif rating >= 4.2:
         score += 2
-    elif restaurant.get("rating", 0) >= 4.0:
+    elif rating >= 4.0:
         score += 1
-    if restaurant.get("reviews", 0) >= 30:
+    
+    reviews = restaurant.get("reviews", 0)
+    if reviews >= 100:
+        score += 3
+    elif reviews >= 50:
+        score += 2
+    elif reviews >= 30:
         score += 1
+    
     return score
 
-async def post_digest():
-    last_posted = get_last_posted_items()
-    messages = []
+async def post_digest() -> None:
+    """
+    Fetch and post digest of news, events, and restaurants to Telegram
+    """
+    try:
+        last_posted = get_last_posted_items()
+        messages = []
+        
+        # Fetch Madrid news
+        logger.info("Fetching Madrid news...")
+        try:
+            news_items = fetch_madrid_news(max_items=MAX_NEWS_ITEMS)
+            for item in news_items:
+                key = item.get("link")
+                if not key or key in last_posted:
+                    continue
+                
+                lang = item.get('lang', 'es').upper()
+                source = item.get('source', 'Unknown')
+                title = item.get('title', 'No title')
+                
+                messages.append(f"📰 [{lang}] {source}: {title}\n{key}")
+                save_posted_item(key)
+                
+                if len(messages) >= MAX_ITEMS_PER_DIGEST:
+                    break
+        except Exception as e:
+            logger.error(f"Error fetching news: {e}")
+        
+        # Fetch cultural events
+        if len(messages) < MAX_ITEMS_PER_DIGEST:
+            logger.info("Fetching cultural events...")
+            try:
+                events = fetch_cultural_events()
+                for event in events[:MAX_CULTURAL_ITEMS]:
+                    key = event.get("link")
+                    if not key or key in last_posted:
+                        continue
+                    
+                    lang = event.get('lang', 'es').upper()
+                    title = event.get('title', 'No title')
+                    
+                    messages.append(f"🎭 [{lang}] {title}\n{key}")
+                    save_posted_item(key)
+                    
+                    if len(messages) >= MAX_ITEMS_PER_DIGEST:
+                        break
+            except Exception as e:
+                logger.error(f"Error fetching cultural events: {e}")
+        
+        # Fetch restaurants (when implemented)
+        if len(messages) < MAX_ITEMS_PER_DIGEST:
+            logger.info("Checking for restaurants...")
+            try:
+                restaurants = fetch_new_restaurants(
+                    last_posted_links=last_posted,
+                    max_items=MAX_RESTAURANT_ITEMS
+                )
+                
+                # Sort by score
+                restaurants_sorted = sorted(
+                    restaurants,
+                    key=restaurant_score,
+                    reverse=True
+                )
+                
+                for restaurant in restaurants_sorted:
+                    key = restaurant.get("link")
+                    if not key or key in last_posted:
+                        continue
+                    
+                    lang = restaurant.get('lang', 'es').upper()
+                    name = restaurant.get('name', 'Unknown')
+                    rating = restaurant.get('rating', 'N/A')
+                    reviews = restaurant.get('reviews', 0)
+                    
+                    messages.append(
+                        f"🍽 [{lang}] {name} — ⭐ {rating} ({reviews} reviews)\n{key}"
+                    )
+                    save_posted_item(key)
+                    
+                    if len(messages) >= MAX_ITEMS_PER_DIGEST:
+                        break
+            except Exception as e:
+                logger.error(f"Error fetching restaurants: {e}")
+        
+        # Send digest if there are new items
+        if messages:
+            digest_text = "\n\n".join(messages)
+            
+            # Truncate if too long
+            if len(digest_text) > MAX_MESSAGE_LENGTH:
+                digest_text = digest_text[:MAX_MESSAGE_LENGTH - 50] + "\n\n... (truncated)"
+            
+            # Add header
+            header = f"📬 **Madrid Digest** - {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+            digest_text = header + digest_text
+            
+            try:
+                await bot.send_message(
+                    CHAT_ID,
+                    digest_text,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True
+                )
+                logger.info(f"✅ Digest posted: {len(messages)} items")
+            except TelegramAPIError as e:
+                logger.error(f"Telegram API error: {e}")
+                # Try without markdown if it fails
+                try:
+                    await bot.send_message(
+                        CHAT_ID,
+                        digest_text.replace("**", ""),
+                        disable_web_page_preview=True
+                    )
+                    logger.info(f"✅ Digest posted (plain text): {len(messages)} items")
+                except Exception as e2:
+                    logger.error(f"Failed to send digest: {e2}")
+        else:
+            logger.info("ℹ️ No new items to post")
+            
+    except Exception as e:
+        logger.error(f"Critical error in post_digest: {e}", exc_info=True)
+        raise
 
-    for item in fetch_madrid_news():
-        key = item["link"]
-        if key in last_posted: continue
-        messages.append(f"📰 [{item['lang'].upper()}] {item['title']}\n{item['link']}")
-        save_posted_item(key)
-        if len(messages) >= 2: break
-
-    for event in fetch_cultural_events():
-        key = event["link"]
-        if key in last_posted: continue
-        messages.append(f"🎭 [{event['lang'].upper()}] {event['title']}\n{event['link']}")
-        save_posted_item(key)
-        if len(messages) >= 5: break
-
-    for r in fetch_new_restaurants(last_posted_links=last_posted, max_items=2):
-        key = r.get("link")
-        if key in last_posted: continue
-        messages.append(f"🍽 [{r.get('lang','ES').upper()}] {r.get('name')} — rating {r.get('rating')} ({r.get('reviews')} reviews)\n{r.get('link')}")
-        save_posted_item(key)
-        if len(messages) >= 5: break
-
-    if messages:
-        digest_text = "\n\n".join(messages)[:4000]
-        await bot.send_message(CHAT_ID, digest_text)
-        print(f"[{datetime.datetime.now()}] Digest posted: {len(messages)} items")
-    else:
-        print(f"[{datetime.datetime.now()}] No new items to post")
+async def close_bot():
+    """Close bot session"""
+    try:
+        await bot.session.close()
+        logger.info("Bot session closed")
+    except Exception as e:
+        logger.error(f"Error closing bot session: {e}")
