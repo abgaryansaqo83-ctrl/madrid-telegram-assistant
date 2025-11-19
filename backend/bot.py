@@ -1,11 +1,18 @@
+# backend/bot.py
+
 from .languages import LANG, detect_lang
+from .news import fetch_madrid_news
+from .jobs import add_offer, add_request, find_matches
+
 import os
+import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram import F
 
-from .news import fetch_madrid_news
-from .jobs import add_offer, add_request, find_matches
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
@@ -68,5 +75,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
