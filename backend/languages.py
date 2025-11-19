@@ -26,15 +26,8 @@ LANG = {
 
 /start - Запустить бота
 /news - Новости Мадрида
-/offer [текст] - Разместить вакансию
-/request [текст] - Разместить запрос на работу
-/match - Найти совпадения
 /help - Показать эту справку
 
-**Примеры:**
-/offer Требуется повар в ресторан
-/request Ищу работу водителем
-        """
     },
     "es": {
         "start": "🤖 Asistente de Madrid en línea. ¿En qué puedo ayudar?",
@@ -52,15 +45,8 @@ LANG = {
 
 /start - Iniciar el bot
 /news - Noticias de Madrid
-/offer [texto] - Publicar oferta de trabajo
-/request [texto] - Publicar solicitud de trabajo
-/match - Encontrar coincidencias
 /help - Mostrar esta ayuda
 
-**Ejemplos:**
-/offer Se necesita cocinero en restaurante
-/request Busco trabajo como conductor
-        """
     },
     "en": {
         "start": "🤖 Madrid assistant online. How can I help?",
@@ -78,15 +64,8 @@ LANG = {
 
 /start - Start the bot
 /news - Madrid news
-/offer [text] - Post job offer
-/request [text] - Post job request
-/match - Find matches
 /help - Show this help
 
-**Examples:**
-/offer Chef needed at restaurant
-/request Looking for driver job
-        """
     }
 }
 
