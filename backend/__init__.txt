@@ -1,21 +1,18 @@
-import os
-
-backend_dir = "backend"
-simplified_dir = os.path.join(backend_dir, "simplified")
-
-# Գտնել բոլոր _init_.py ֆայլերը backend-ի մեջ
-for root, dirs, files in os.walk(backend_dir):
-    for file in files:
-        if file == "_init_.py":
-            init_path = os.path.join(root, file)
-            with open(init_path, "a", encoding="utf-8") as f_init:
-                # Ավելացնել բոլոր simplified-ի ֆայլերը
-                for simple_file in os.listdir(simplified_dir):
-                    simple_path = os.path.join(simplified_dir, simple_file)
-                    if os.path.isfile(simple_path):
-                        with open(simple_path, "r", encoding="utf-8") as f_simple:
-                            f_init.write("\n\n# --- Start of simplified: {} ---\n".format(simple_file))
-                            f_init.write(f_simple.read())
-                            f_init.write("\n# --- End of simplified: {} ---\n".format(simple_file))
-
-print("Բոլոր simplified ֆայլերը ավելացվեցին backend-ի _init_.py-երին։")
+your-project/
+│
+├── backend/
+│   ├── __init__.py
+│   ├── bot.py
+│   ├── languages.py
+│   ├── news.py
+│   ├── jobs.py
+│   ├── requirements.txt
+│   └── .env.example
+│
+├── simplified/
+│   ├── __init__.py
+│   ├── post_digest.py
+│   └── schedule.py
+│
+├── README.md
+├── .gitignore
