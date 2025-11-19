@@ -1,17 +1,6 @@
-# backend/languages.py
-
-import logging
-
-logger = logging.getLogger(__name__)
-
-# Supported languages
-SUPPORTED_LANGUAGES = ["ru", "es", "en"]
-DEFAULT_LANGUAGE = "ru"
-
-# Language strings for bot responses
 LANG = {
     "ru": {
-        "start": "🤖 Мадридский помощник на связи. Что нужно ?",
+        "start": "🤖 Мадридский помощник на связи. Чем помочь?",
         "news": "🌇 Новости Мадрида:",
         "offer_saved": "📌 Вакансия добавлена.",
         "request_saved": "🔎 Запрос на работу сохранён.",
@@ -22,22 +11,22 @@ LANG = {
         "empty_request": "⚠️ Пожалуйста, укажите детали запроса.",
         "error": "❌ Произошла ошибка. Попробуйте позже.",
         "help": """
-"help": """
 🤖 **Доступные команды:**
 
 /start - Запустить бота
 /news - Новости Мадрида
 /offer [текст] - Разместить вакансию
-/request [текст] - Разместить запрос
+/request [текст] - Разместить запрос на работу
 /match - Найти совпадения
 /help - Показать эту справку
 
 **Примеры:**
 /offer Требуется повар в ресторан
 /request Ищу работу водителем
-"""
+        """
+    },
     "es": {
-        "start": "🤖 Asistente de Madrid en línea. ¿Qué necesitas, Saqo?",
+        "start": "🤖 Asistente de Madrid en línea. ¿En qué puedo ayudar?",
         "news": "🌇 Noticias de Madrid:",
         "offer_saved": "📌 Oferta registrada.",
         "request_saved": "🔎 Solicitud de trabajo guardada.",
@@ -63,7 +52,7 @@ LANG = {
         """
     },
     "en": {
-        "start": "🤖 Madrid assistant online. What do you need, Saqo?",
+        "start": "🤖 Madrid assistant online. How can I help?",
         "news": "🌇 Madrid News:",
         "offer_saved": "📌 Job offer saved.",
         "request_saved": "🔎 Job request saved.",
@@ -89,7 +78,6 @@ LANG = {
         """
     }
 }
-
 def detect_lang(user_lang: str = None) -> str:
     """
     Detect user's language from Telegram language code
