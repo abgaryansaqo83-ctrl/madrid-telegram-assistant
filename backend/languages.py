@@ -25,9 +25,10 @@ LANG = {
     }
 }
 
+
 def detect_lang(user_lang):
     if not user_lang:
-        return "ru"
+        return "ru"  # default Russian
 
     if user_lang.startswith("ru"):
         return "ru"
