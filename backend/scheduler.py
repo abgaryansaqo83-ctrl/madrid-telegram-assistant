@@ -56,7 +56,7 @@ def start_scheduler(bot: Bot):
             scheduler.start()
             logger.info("Scheduler started successfully")
         
-        logger.info("Morning news job scheduled for 8:30 AM daily")
+        logger.info("Morning news job scheduler for 8:30 AM daily")
         
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}")
