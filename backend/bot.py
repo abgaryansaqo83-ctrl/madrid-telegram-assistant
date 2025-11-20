@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches
-from backend.news import fetch_madrid_news
+from backend.news import format_all_news_for_telegram
 from backend.database import init_db
 from backend.memory import save_message_with_analysis
 from backend.matching import (
@@ -53,23 +53,14 @@ async def start_cmd(message: types.Message):
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
     try:
-        lang = detect_lang(message.from_user.language_code)
-        news_items = fetch_madrid_news()
+        # Get formatted news from news.py
+        news_text = format_all_news_for_telegram()
         
-        if not news_items:
-            await message.answer(LANG[lang].get("no_news", "No news available"))
-            return
-        
-        # Format news items
-        news_text = ""
-        for item in news_items[:5]:  # Limit to 5 items
-            news_text += f"📰 {item['title']}\n{item['link']}\n\n"
-        
-        await message.answer(f"{LANG[lang]['news']}\n\n{news_text}")
+        await message.answer(news_text, parse_mode="HTML")
         logger.info(f"User {message.from_user.id} requested news")
     except Exception as e:
         logger.error(f"Error in news_cmd: {e}")
-        await message.answer("Error fetching news")
+        await message.answer("❌ Error al obtener noticias. Inténtalo más tarde.")
 
 # /offer
 @dp.message(F.text.startswith("/offer "))
