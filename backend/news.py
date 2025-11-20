@@ -48,6 +48,14 @@ TRAFFIC_LINKS = {
 def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: int = 7) -> List[Dict]:
     """
     Fetch and parse RSS feed items with error handling
+    
+    Args:
+        feed_list: List of feed dictionaries with 'url', 'lang', 'name'
+        max_items: Maximum items to fetch per feed (1-3)
+        max_age_days: Maximum age of items in days (default 7)
+        
+    Returns:
+        List of news items with title, link, lang, source, published
     """
     items = []
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=max_age_days)
@@ -57,6 +65,7 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
             logger.info(f"Fetching feed: {feed.get('name', feed['url'])}")
             parsed = feedparser.parse(feed["url"], timeout=10)
             
+            # Check if feed was successfully parsed
             if parsed.bozo and parsed.bozo_exception:
                 logger.warning(f"Feed parse error for {feed['url']}: {parsed.bozo_exception}")
                 continue
@@ -71,6 +80,7 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
                     break
                 
                 try:
+                    # Parse publication date
                     published = None
                     if hasattr(entry, 'published_parsed') and entry.published_parsed:
                         try:
@@ -83,10 +93,12 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
                         except:
                             pass
                     
+                    # Skip old items if date is available
                     if published and published < cutoff_time:
                         logger.debug(f"Skipping old item: {entry.get('title', 'No title')}")
                         continue
                     
+                    # Extract item data
                     item = {
                         "title": entry.get('title', 'Sin título'),
                         "link": entry.get('link', ''),
@@ -95,6 +107,7 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
                         "published": published.isoformat() if published else None
                     }
                     
+                    # Optional: add description/summary if available
                     if hasattr(entry, 'summary'):
                         item["summary"] = entry.summary[:150]
                     
@@ -114,47 +127,72 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
     return items
 
 def fetch_madrid_news(max_items: int = 3) -> List[Dict]:
-    """Fetch latest Madrid news (1-3 items)"""
+    """
+    Fetch latest Madrid news (1-3 items)
+    
+    Returns:
+        List of 1-3 Madrid news items
+    """
     try:
         news = fetch_feed_items(MADRID_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Madrid news items")
-        return news[:max_items]
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching Madrid news: {e}")
         return []
 
 def fetch_spain_news(max_items: int = 3) -> List[Dict]:
-    """Fetch latest Spain news (1-3 items)"""
+    """
+    Fetch latest Spain news (1-3 items)
+    
+    Returns:
+        List of 1-3 Spain news items
+    """
     try:
         news = fetch_feed_items(SPAIN_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Spain news items")
-        return news[:max_items]
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching Spain news: {e}")
         return []
 
 def fetch_cultural_news(max_items: int = 3) -> List[Dict]:
-    """Fetch latest cultural/events news (1-3 items)"""
+    """
+    Fetch latest cultural/events news (1-3 items)
+    
+    Returns:
+        List of 1-3 cultural items
+    """
     try:
         news = fetch_feed_items(CULTURAL_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} cultural items")
-        return news[:max_items]
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching cultural news: {e}")
         return []
 
 def fetch_traffic_news(max_items: int = 3) -> List[Dict]:
-    """Fetch latest traffic/mobility news (1-3 items)"""
+    """
+    Fetch latest traffic/mobility news (1-3 items)
+    
+    Returns:
+        List of 1-3 traffic items
+    """
     try:
         news = fetch_feed_items([TRAFFIC_FEED], max_items=max_items, max_age_days=2)
         logger.info(f"Fetched {len(news)} traffic items")
-        return news[:max_items]
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching traffic news: {e}")
         return []
 
 def fetch_weather_alerts() -> List[Dict]:
-    """Fetch weather alerts from AEMET"""
+    """
+    Fetch weather alerts from AEMET
+    
+    Returns:
+        List of weather alerts (if any)
+    """
     try:
         alerts = fetch_feed_items([WEATHER_FEED], max_items=3, max_age_days=1)
         logger.info(f"Fetched {len(alerts)} weather alerts")
@@ -164,12 +202,22 @@ def fetch_weather_alerts() -> List[Dict]:
         return []
 
 def format_news_section(items: List[Dict], title: str, emoji: str) -> str:
-    """Format a news section for Telegram"""
+    """
+    Format a news section for Telegram
+    
+    Args:
+        items: List of news items
+        title: Section title
+        emoji: Section emoji
+        
+    Returns:
+        Formatted string or empty if no items
+    """
     if not items:
         return ""
     
     lines = [f"{emoji} <b>{title}</b>\n"]
-    for item in items[:3]:
+    for item in items[:3]:  # Max 3 items
         source = item.get('source', 'Fuente')
         title_text = item.get('title', 'Sin título')
         link = item.get('link', '')
@@ -186,6 +234,9 @@ def format_manual_news() -> str:
     - Madrid news (1-3)
     - Spain news (1-3)
     - Cultural (1-3)
+    
+    Returns:
+        Formatted news string in original languages
     """
     try:
         sections = []
@@ -223,6 +274,9 @@ def format_morning_news() -> str:
     - Weather (funny style)
     - Traffic (casual style)
     Russian language with Spanish humor
+    
+    Returns:
+        Formatted morning news string in Russian
     """
     try:
         traffic_news = fetch_traffic_news(max_items=2)
@@ -242,7 +296,7 @@ def format_morning_news() -> str:
         
         if traffic_news:
             for item in traffic_news[:2]:
-                title = item.get('title', 'Информация о движении')
+                title = item.get('title', 'Información de tráfico')
                 lines.append(f"• {title}")
         else:
             lines.append("• M-30 → уже пробка (как всегда) 🚙")
