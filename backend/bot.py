@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from aiogram import F
 from dotenv import load_dotenv
 
+from backend.scheduler import start_scheduler, stop_scheduler
 from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches
 from backend.news import format_all_news_for_telegram
