@@ -9,46 +9,49 @@ from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# News feed sources
-SPAIN_FEEDS = [
-    {"url": "https://elpais.com/rss/elpais/internacional.xml", "lang": "es", "name": "El País"},
-    {"url": "https://www.rt.com/rss/news/", "lang": "ru", "name": "RT"},
-]
-
+# Madrid News Feeds (6 sources)
 MADRID_FEEDS = [
+    {"url": "https://www.madrid24horas.com/rss/ultima-hora/", "name": "Madrid 24h", "lang": "es"},
+    {"url": "https://www.madridiario.es/feed/", "name": "Madridiario", "lang": "es"},
+    {"url": "https://www.eldiariodemadrid.es/rss/madrid/", "name": "El Diario de Madrid", "lang": "es"},
+    {"url": "https://diario.madrid.es/feed", "name": "Ayuntamiento Madrid", "lang": "es"},
     {"url": "https://elpais.com/rss/ccaa/madrid.xml", "name": "El País Madrid", "lang": "es"},
     {"url": "https://www.20minutos.es/rss/comunidad-de-madrid/", "name": "20 Minutos Madrid", "lang": "es"},
-    {"url": "https://www.madrid24horas.com/rss/listado/", "name": "Madrid 24 Horas", "lang": "es"},
 ]
 
-# Cultural venues (static - no RSS available)
-CULTURAL_VENUES = [
-    {"title": "🎭 Teatro Real", "link": "https://www.teatro-real.com/es/temporada", "description": "Ópera y ballet"},
-    {"title": "🎬 Cine Doré (Filmoteca)", "link": "https://www.culturaydeporte.gob.es/cultura/areas/cine/mc/fe/cine-dore/programacion.html", "description": "Cine clásico 2.5€"},
-    {"title": "🎪 Matadero Madrid", "link": "https://www.mataderomadrid.org/programacion", "description": "Arte contemporáneo"},
-    {"title": "🎥 Yelmo Cines Ideal", "link": "https://yelmocines.es/cines/madrid/yelmo-cines-ideal", "description": "Cine V.O. centro"},
-    {"title": "🎭 Teatros del Canal", "link": "https://www.teatroscanal.com/", "description": "Teatro y danza"},
+# Spain News Feeds (2 sources)
+SPAIN_FEEDS = [
+    {"url": "https://elpais.com/rss/elpais/internacional.xml", "lang": "es", "name": "El País España"},
+    {"url": "https://www.rt.com/rss/news/", "lang": "ru", "name": "RT Noticias"},
 ]
 
-# OpenWeather API (free tier)
-OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
-OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
+# Cultural/Events Feeds (3 sources)
+CULTURAL_FEEDS = [
+    {"url": "https://www.madrid24horas.com/rss/que-hacer/", "name": "Qué Hacer Madrid", "lang": "es"},
+    {"url": "https://www.madrid24horas.com/rss/eventos/", "name": "Eventos Madrid", "lang": "es"},
+    {"url": "https://www.eldiariodemadrid.es/rss/planes-por-madrid/", "name": "Planes Madrid", "lang": "es"},
+]
 
-# Traffic info (static - no free real-time RSS)
-TRAFFIC_INFO = {
-    "morning_rush": "🚗 Hora punta mañana: 7:30-9:30 (M-30, A-2, A-6 congestionadas)",
-    "evening_rush": "🚙 Hora punta tarde: 18:00-20:00 (salidas centro congestionadas)",
-    "link": "https://www.tomtom.com/traffic-index/madrid-traffic/",
-    "dgt_link": "https://infocar.dgt.es/etraffic/",
+# Traffic/Mobility Feed (1 source)
+TRAFFIC_FEED = {"url": "https://www.eldiariodemadrid.es/rss/movilidad/", "name": "Movilidad Madrid", "lang": "es"}
+
+# Weather Feed (AEMET - Spanish official meteorology)
+WEATHER_FEED = {"url": "https://www.aemet.es/es/rss_info/avisos/mad", "name": "AEMET Madrid", "lang": "es"}
+
+# Traffic links (for reference)
+TRAFFIC_LINKS = {
+    "informo": "https://informo.madrid.es/",
+    "dgt": "https://infocar.dgt.es/etraffic/",
+    "cameras": "https://www.race.es/mapa-de-carreteras-espana/camaras-trafico-madrid",
 }
 
-def fetch_feed_items(feed_list: List[Dict], max_items: int = 5, max_age_days: int = 7) -> List[Dict]:
+def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: int = 7) -> List[Dict]:
     """
     Fetch and parse RSS feed items with error handling
     
     Args:
         feed_list: List of feed dictionaries with 'url', 'lang', 'name'
-        max_items: Maximum items to fetch per feed
+        max_items: Maximum items to fetch per feed (1-3)
         max_age_days: Maximum age of items in days (default 7)
         
     Returns:
@@ -97,16 +100,16 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 5, max_age_days: in
                     
                     # Extract item data
                     item = {
-                        "title": entry.get('title', 'No title'),
+                        "title": entry.get('title', 'Sin título'),
                         "link": entry.get('link', ''),
                         "lang": feed.get("lang", "es"),
-                        "source": feed.get("name", "Unknown"),
+                        "source": feed.get("name", "Desconocido"),
                         "published": published.isoformat() if published else None
                     }
                     
                     # Optional: add description/summary if available
                     if hasattr(entry, 'summary'):
-                        item["summary"] = entry.summary[:200]  # Limit length
+                        item["summary"] = entry.summary[:150]
                     
                     items.append(item)
                     feed_items_count += 1
@@ -123,231 +126,201 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 5, max_age_days: in
     
     return items
 
-def fetch_weather_madrid() -> Optional[Dict]:
+def fetch_madrid_news(max_items: int = 3) -> List[Dict]:
     """
-    Fetch current weather for Madrid from OpenWeather API
+    Fetch latest Madrid news (1-3 items)
     
     Returns:
-        Weather data dictionary or None
-    """
-    if not OPENWEATHER_API_KEY:
-        logger.warning("OpenWeather API key not configured")
-        return None
-    
-    try:
-        params = {
-            "q": "Madrid,ES",
-            "appid": OPENWEATHER_API_KEY,
-            "units": "metric",
-            "lang": "es"
-        }
-        
-        response = requests.get(OPENWEATHER_URL, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        
-        weather = {
-            "temp": round(data["main"]["temp"]),
-            "feels_like": round(data["main"]["feels_like"]),
-            "description": data["weather"][0]["description"].capitalize(),
-            "humidity": data["main"]["humidity"],
-            "wind_speed": round(data["wind"]["speed"] * 3.6, 1),  # m/s to km/h
-        }
-        
-        logger.info(f"Fetched weather: {weather['temp']}°C, {weather['description']}")
-        return weather
-        
-    except Exception as e:
-        logger.error(f"Error fetching weather: {e}")
-        return None
-
-def fetch_madrid_news(max_items: int = 5) -> List[Dict]:
-    """
-    Fetch latest news from Madrid-specific feeds
-    
-    Args:
-        max_items: Maximum items to fetch per feed
-        
-    Returns:
-        List of Madrid news items
+        List of 1-3 Madrid news items
     """
     try:
-        news = fetch_feed_items(MADRID_FEEDS, max_items=max_items, max_age_days=7)
+        news = fetch_feed_items(MADRID_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Madrid news items")
-        return news
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching Madrid news: {e}")
         return []
 
-def fetch_spain_news(max_items: int = 5) -> List[Dict]:
+def fetch_spain_news(max_items: int = 3) -> List[Dict]:
     """
-    Fetch latest news from Spain-wide feeds
+    Fetch latest Spain news (1-3 items)
     
-    Args:
-        max_items: Maximum items to fetch per feed
-        
     Returns:
-        List of Spain news items
+        List of 1-3 Spain news items
     """
     try:
-        news = fetch_feed_items(SPAIN_FEEDS, max_items=max_items, max_age_days=7)
+        news = fetch_feed_items(SPAIN_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Spain news items")
-        return news
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
         logger.error(f"Error fetching Spain news: {e}")
         return []
 
-def get_cultural_venues() -> List[Dict]:
+def fetch_cultural_news(max_items: int = 3) -> List[Dict]:
     """
-    Get cultural venues info (static list)
+    Fetch latest cultural/events news (1-3 items)
     
     Returns:
-        List of cultural venue items
+        List of 1-3 cultural items
     """
     try:
-        logger.info(f"Returning {len(CULTURAL_VENUES)} cultural venues")
-        return CULTURAL_VENUES.copy()
+        news = fetch_feed_items(CULTURAL_FEEDS, max_items=1, max_age_days=7)
+        logger.info(f"Fetched {len(news)} cultural items")
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
-        logger.error(f"Error getting cultural venues: {e}")
+        logger.error(f"Error fetching cultural news: {e}")
         return []
 
-def get_traffic_info() -> Dict:
+def fetch_traffic_news(max_items: int = 3) -> List[Dict]:
     """
-    Get traffic information (static info + links)
+    Fetch latest traffic/mobility news (1-3 items)
     
     Returns:
-        Traffic info dictionary
+        List of 1-3 traffic items
     """
     try:
-        current_hour = datetime.now().hour
-        
-        # Determine rush hour status
-        if 7 <= current_hour <= 9:
-            status = "morning_rush"
-        elif 18 <= current_hour <= 20:
-            status = "evening_rush"
-        else:
-            status = "normal"
-        
-        info = {
-            "status": status,
-            "message": TRAFFIC_INFO.get(status, "Tráfico normal"),
-            "link": TRAFFIC_INFO["link"],
-            "dgt_link": TRAFFIC_INFO["dgt_link"]
-        }
-        
-        logger.info(f"Traffic status: {status}")
-        return info
-        
+        news = fetch_feed_items([TRAFFIC_FEED], max_items=max_items, max_age_days=2)
+        logger.info(f"Fetched {len(news)} traffic items")
+        return news[:max_items]  # Limit to max 3 total
     except Exception as e:
-        logger.error(f"Error getting traffic info: {e}")
-        return {"status": "unknown", "message": "Info no disponible"}
+        logger.error(f"Error fetching traffic news: {e}")
+        return []
 
-def get_all_madrid_info(max_items_per_feed: int = 3) -> Dict[str, any]:
+def fetch_weather_alerts() -> List[Dict]:
+    """
+    Fetch weather alerts from AEMET
+    
+    Returns:
+        List of weather alerts (if any)
+    """
+    try:
+        alerts = fetch_feed_items([WEATHER_FEED], max_items=3, max_age_days=1)
+        logger.info(f"Fetched {len(alerts)} weather alerts")
+        return alerts
+    except Exception as e:
+        logger.error(f"Error fetching weather alerts: {e}")
+        return []
+
+def get_all_madrid_info() -> Dict[str, any]:
     """
     Fetch all Madrid information in one call
     
-    Args:
-        max_items_per_feed: Maximum items per feed
-        
     Returns:
-        Dictionary with 'news', 'weather', 'traffic', 'cultural' keys
+        Dictionary with 'madrid_news', 'spain_news', 'cultural', 'traffic', 'weather'
     """
     try:
         return {
-            "news": fetch_madrid_news(max_items=max_items_per_feed),
-            "weather": fetch_weather_madrid(),
-            "traffic": get_traffic_info(),
-            "cultural": get_cultural_venues()
+            "madrid_news": fetch_madrid_news(max_items=3),
+            "spain_news": fetch_spain_news(max_items=3),
+            "cultural": fetch_cultural_news(max_items=3),
+            "traffic": fetch_traffic_news(max_items=3),
+            "weather": fetch_weather_alerts(),
         }
     except Exception as e:
         logger.error(f"Error fetching all Madrid info: {e}")
-        return {"news": [], "weather": None, "traffic": {}, "cultural": []}
+        return {
+            "madrid_news": [],
+            "spain_news": [],
+            "cultural": [],
+            "traffic": [],
+            "weather": []
+        }
 
-def format_news_for_telegram(news_items: List[Dict], max_items: int = 5) -> str:
+def format_news_section(items: List[Dict], title: str, emoji: str) -> str:
     """
-    Format news items for Telegram message
+    Format a news section for Telegram
     
     Args:
-        news_items: List of news dictionaries
-        max_items: Maximum items to include
+        items: List of news items
+        title: Section title
+        emoji: Section emoji
         
     Returns:
-        Formatted string ready for Telegram
+        Formatted string or empty if no items
     """
-    if not news_items:
-        return "📭 No hay noticias disponibles."
+    if not items:
+        return ""
     
-    formatted = []
-    for item in news_items[:max_items]:
-        source = item.get('source', 'Unknown')
-        title = item.get('title', 'No title')
+    lines = [f"{emoji} <b>{title}</b>\n"]
+    for item in items[:3]:  # Max 3 items
+        source = item.get('source', 'Fuente')
+        title_text = item.get('title', 'Sin título')
         link = item.get('link', '')
         
-        formatted.append(f"📰 <b>{source}</b>: {title}\n{link}")
+        lines.append(f"• <b>{source}</b>: {title_text}")
+        if link:
+            lines.append(f"  {link}")
     
-    return "\n\n".join(formatted)
+    return "\n".join(lines)
 
-def format_weather_for_telegram(weather: Optional[Dict]) -> str:
+def format_all_news_for_telegram() -> str:
     """
-    Format weather data for Telegram message
+    Fetch and format all news for Telegram /news command
     
-    Args:
-        weather: Weather dictionary
-        
     Returns:
-        Formatted string
+        Complete formatted news message
     """
-    if not weather:
-        return "🌤️ Clima no disponible"
-    
-    return (
-        f"🌤️ <b>Clima en Madrid</b>\n"
-        f"🌡️ Temperatura: {weather['temp']}°C (sensación {weather['feels_like']}°C)\n"
-        f"☁️ {weather['description']}\n"
-        f"💨 Viento: {weather['wind_speed']} km/h\n"
-        f"💧 Humedad: {weather['humidity']}%"
-    )
-
-def format_traffic_for_telegram(traffic: Dict) -> str:
-    """
-    Format traffic info for Telegram message
-    
-    Args:
-        traffic: Traffic dictionary
+    try:
+        info = get_all_madrid_info()
         
-    Returns:
-        Formatted string
-    """
-    message = traffic.get('message', 'Tráfico normal')
-    link = traffic.get('link', '')
-    dgt_link = traffic.get('dgt_link', '')
-    
-    return (
-        f"🚦 <b>Tráfico en Madrid</b>\n"
-        f"{message}\n\n"
-        f"📊 <a href='{link}'>Ver mapa de tráfico</a>\n"
-        f"🚨 <a href='{dgt_link}'>Incidencias DGT</a>"
-    )
-
-def format_cultural_for_telegram(venues: List[Dict]) -> str:
-    """
-    Format cultural venues for Telegram message
-    
-    Args:
-        venues: List of venue dictionaries
+        sections = []
         
-    Returns:
-        Formatted string
-    """
-    if not venues:
-        return "🎭 No hay info cultural disponible"
-    
-    formatted = ["🎭 <b>Cultura y Cine</b>\n"]
-    for venue in venues:
-        title = venue.get('title', '')
-        link = venue.get('link', '')
-        desc = venue.get('description', '')
-        formatted.append(f"{title}: {desc}\n<a href='{link}'>Ver programación</a>")
-    
-    return "\n\n".join(formatted)
+        # Madrid news (1-3 items)
+        madrid_section = format_news_section(
+            info['madrid_news'],
+            "Noticias de Madrid",
+            "🏛️"
+        )
+        if madrid_section:
+            sections.append(madrid_section)
+        
+        # Spain news (1-3 items)
+        spain_section = format_news_section(
+            info['spain_news'],
+            "Noticias de España",
+            "📰"
+        )
+        if spain_section:
+            sections.append(spain_section)
+        
+        # Cultural (1-3 items)
+        cultural_section = format_news_section(
+            info['cultural'],
+            "Cultura y Eventos",
+            "🎭"
+        )
+        if cultural_section:
+            sections.append(cultural_section)
+        
+        # Traffic (1-3 items)
+        traffic_section = format_news_section(
+            info['traffic'],
+            "Tráfico y Movilidad",
+            "🚦"
+        )
+        if traffic_section:
+            sections.append(traffic_section)
+        
+        # Weather alerts
+        if info['weather']:
+            weather_lines = ["🌤️ <b>Alertas Meteorológicas</b>\n"]
+            for alert in info['weather'][:2]:  # Max 2 alerts
+                title = alert.get('title', 'Alerta')
+                weather_lines.append(f"⚠️ {title}")
+            sections.append("\n".join(weather_lines))
+        
+        # Traffic links
+        sections.append(
+            f"🔗 <b>Más información</b>\n"
+            f"📊 <a href='{TRAFFIC_LINKS['informo']}'>Tráfico Madrid (Informo)</a>\n"
+            f"🚨 <a href='{TRAFFIC_LINKS['dgt']}'>Incidencias DGT</a>"
+        )
+        
+        if not sections:
+            return "📭 No hay noticias disponibles en este momento."
+        
+        return "\n\n".join(sections)
+        
+    except Exception as e:
+        logger.error(f"Error formatting news: {e}")
+        return "❌ Error al obtener noticias. Inténtalo más tarde."
