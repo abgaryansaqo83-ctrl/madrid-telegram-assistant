@@ -63,7 +63,7 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
     for feed in feed_list:
         try:
             logger.info(f"Fetching feed: {feed.get('name', feed['url'])}")
-            parsed = feedparser.parse(feed["url"], timeout=10)
+            parsed = feedparser.parse(feed["url"])  # ← FIXED: Removed timeout=10
             
             # Check if feed was successfully parsed
             if parsed.bozo and parsed.bozo_exception:
