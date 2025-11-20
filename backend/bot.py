@@ -8,10 +8,9 @@ from aiogram.filters import Command
 from aiogram import F
 from dotenv import load_dotenv
 
-from backend.scheduler import start_scheduler, stop_scheduler
 from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches
-from backend.news import format_all_news_for_telegram
+from backend.news import format_manual_news
 from backend.database import init_db
 from backend.memory import save_message_with_analysis
 from backend.matching import (
@@ -21,6 +20,7 @@ from backend.matching import (
     is_housing_offer,
     is_housing_request
 )
+from backend.scheduler import start_scheduler, stop_scheduler
 
 # Setup logging
 logging.basicConfig(
@@ -55,7 +55,7 @@ async def start_cmd(message: types.Message):
 async def news_cmd(message: types.Message):
     try:
         # Get formatted news from news.py
-        news_text = format_all_news_for_telegram()
+        news_text = format_manual_news()
         
         await message.answer(news_text, parse_mode="HTML")
         logger.info(f"User {message.from_user.id} requested news")
@@ -186,7 +186,7 @@ async def main():
         
         # Start scheduler for morning news
         start_scheduler(bot)
-        logger.info("News scheduler started")
+        logger.info("News scheduler started - Morning news at 8:30 AM")
         
         logger.info("Starting bot...")
         await dp.start_polling(bot, skip_updates=True)
@@ -196,6 +196,7 @@ async def main():
     finally:
         # Stop scheduler on bot shutdown
         stop_scheduler()
+        logger.info("Scheduler stopped")
 
 if __name__ == "__main__":
     asyncio.run(main())
