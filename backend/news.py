@@ -63,7 +63,7 @@ def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: in
     for feed in feed_list:
         try:
             logger.info(f"Fetching feed: {feed.get('name', feed['url'])}")
-            parsed = feedparser.parse(feed["url"])  # ← FIXED: Removed timeout=10
+            parsed = feedparser.parse(feed["url"])
             
             # Check if feed was successfully parsed
             if parsed.bozo and parsed.bozo_exception:
@@ -136,7 +136,7 @@ def fetch_madrid_news(max_items: int = 3) -> List[Dict]:
     try:
         news = fetch_feed_items(MADRID_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Madrid news items")
-        return news[:max_items]  # Limit to max 3 total
+        return news[:max_items]
     except Exception as e:
         logger.error(f"Error fetching Madrid news: {e}")
         return []
@@ -151,7 +151,7 @@ def fetch_spain_news(max_items: int = 3) -> List[Dict]:
     try:
         news = fetch_feed_items(SPAIN_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} Spain news items")
-        return news[:max_items]  # Limit to max 3 total
+        return news[:max_items]
     except Exception as e:
         logger.error(f"Error fetching Spain news: {e}")
         return []
@@ -166,7 +166,7 @@ def fetch_cultural_news(max_items: int = 3) -> List[Dict]:
     try:
         news = fetch_feed_items(CULTURAL_FEEDS, max_items=1, max_age_days=7)
         logger.info(f"Fetched {len(news)} cultural items")
-        return news[:max_items]  # Limit to max 3 total
+        return news[:max_items]
     except Exception as e:
         logger.error(f"Error fetching cultural news: {e}")
         return []
@@ -181,7 +181,7 @@ def fetch_traffic_news(max_items: int = 3) -> List[Dict]:
     try:
         news = fetch_feed_items([TRAFFIC_FEED], max_items=max_items, max_age_days=2)
         logger.info(f"Fetched {len(news)} traffic items")
-        return news[:max_items]  # Limit to max 3 total
+        return news[:max_items]
     except Exception as e:
         logger.error(f"Error fetching traffic news: {e}")
         return []
@@ -217,7 +217,7 @@ def format_news_section(items: List[Dict], title: str, emoji: str) -> str:
         return ""
     
     lines = [f"{emoji} <b>{title}</b>\n"]
-    for item in items[:3]:  # Max 3 items
+    for item in items[:3]:
         source = item.get('source', 'Fuente')
         title_text = item.get('title', 'Sin título')
         link = item.get('link', '')
