@@ -8,11 +8,11 @@ madrid-telegram-assistant/
 │   ├── languages.py        # Multi-language support
 │   ├── news.py             # RSS feed fetching
 │   ├── jobs.py             # Job offers/requests matching
+│   │── scheduler.py         # Scheduler
 │   └── requirements.txt    # Python dependencies
 ├── simplified/
 │   ├── __init__.py
-│   ├── post_digest.py      # Digest posting logic
-│   └── schedule.py         # Scheduler
+│   └── post_digest.py      # Digest posting logic   
 ├── data/                   # JSON database files
 │   └── .gitkeep
 ├── Procfile                # Render deployment config
@@ -76,7 +76,7 @@ python -m backend.bot
 ### Run Scheduler Only
 
 ```
-python -m simplified.schedule
+python -m backend.scheduler
 ```
 
 ## Bot Commands
