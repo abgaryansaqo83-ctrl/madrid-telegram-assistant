@@ -13,7 +13,7 @@ services:
         sync: false
       - key: DIGEST_INTERVAL
         value: "30"
-      - key: SCHEDULE_TYPE
+      - key: SCHEDULER_TYPE
         value: "interval"
       - key: PYTHON_VERSION
         value: "3.11.9"
