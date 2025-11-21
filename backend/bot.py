@@ -185,18 +185,26 @@ async def main():
         logger.info("Database initialized")
         
         # Start scheduler for morning news
-        start_scheduler(bot)
-        logger.info("News scheduler started - Morning news at 8:30 AM")
+        try:
+            start_scheduler(bot)
+            logger.info("News scheduler started - Morning news at 8:30 AM")
+        except Exception as e:
+            logger.error(f"Failed to start scheduler: {e}")
+            logger.info("Bot will continue without scheduler")
         
         logger.info("Starting bot...")
         await dp.start_polling(bot, skip_updates=True)
+        
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
         raise
     finally:
         # Stop scheduler on bot shutdown
-        stop_scheduler()
-        logger.info("Scheduler stopped")
+        try:
+            stop_scheduler()
+            logger.info("Scheduler stopped")
+        except Exception as e:
+            logger.error(f"Error stopping scheduler: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
