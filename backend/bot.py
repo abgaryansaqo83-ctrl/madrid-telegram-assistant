@@ -131,6 +131,38 @@ async def help_cmd(message: types.Message):
         logger.error(f"Error in help_cmd: {e}")
         await message.answer("Error showing help")
 
+# Welcome new members
+@dp.message(F.new_chat_members)
+async def welcome_new_member(message: types.Message):
+    """
+    Welcome new group members in Russian
+    """
+    try:
+        for new_member in message.new_chat_members:
+            # Skip if bot itself was added
+            if new_member.id == bot.id:
+                continue
+            
+            username = new_member.username if new_member.username else new_member.first_name
+            mention = f"@{username}" if new_member.username else new_member.first_name
+            
+            welcome_text = (
+                f"🎉 <b>Добро пожаловать в нашу группу, {mention}!</b>\n\n"
+                f"Мы рады приветствовать нового участника! "
+                f"Надеемся, что наша группа будет полезна для вас, "
+                f"и вы найдёте здесь всё, что ищете.\n\n"
+                f"💬 Не стесняйтесь задавать вопросы\n"
+                f"🤝 Делитесь опытом с другими участниками\n"
+                f"📢 Следите за полезными новостями\n\n"
+                f"Спасибо, что присоединились к нам! 🇪🇸"
+            )
+            
+            await message.answer(welcome_text, parse_mode="HTML")
+            logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
+            
+    except Exception as e:
+        logger.error(f"Error in welcome_new_member: {e}")
+
 # All text messages - housing matching
 @dp.message(F.text)
 async def handle_message(message: types.Message):
@@ -187,7 +219,7 @@ async def main():
         # Start scheduler for morning news
         try:
             start_scheduler(bot)
-            logger.info("News scheduler started - Morning news at 8:30 AM")
+            logger.info("News scheduler started - Morning news at 8:30 AM Madrid time")
         except Exception as e:
             logger.error(f"Failed to start scheduler: {e}")
             logger.info("Bot will continue without scheduler")
