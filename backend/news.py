@@ -45,6 +45,64 @@ TRAFFIC_LINKS = {
     "cameras": "https://www.race.es/mapa-de-carreteras-espana/camaras-trafico-madrid",
 }
 
+def get_weather_madrid():
+    """
+    Get real weather data for Madrid using OpenWeatherMap API
+    Returns: dict with temp, feels_like, description, icon
+    """
+    try:
+        # OpenWeatherMap Free API
+        API_KEY = os.getenv("OPENWEATHER_API_KEY")
+        
+        if not API_KEY:
+            # Fallback to placeholder if no API key
+            logger.warning("No OpenWeatherMap API key found, using placeholder data")
+            return {
+                "temp": 12,
+                "feels_like": 10,
+                "description": "облачно",
+                "icon": "☁️"
+            }
+        
+        url = f"https://api.openweathermap.org/data/2.5/weather?q=Madrid,ES&appid={API_KEY}&units=metric&lang=ru"
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Map weather icons
+        weather_icons = {
+            "Clear": "☀️",
+            "Clouds": "☁️",
+            "Rain": "🌧️",
+            "Drizzle": "🌦️",
+            "Thunderstorm": "⛈️",
+            "Snow": "❄️",
+            "Mist": "🌫️",
+            "Fog": "🌫️"
+        }
+        
+        main_weather = data["weather"][0]["main"]
+        icon = weather_icons.get(main_weather, "🌤️")
+        
+        return {
+            "temp": round(data["main"]["temp"]),
+            "feels_like": round(data["main"]["feels_like"]),
+            "description": data["weather"][0]["description"],
+            "icon": icon
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching weather: {e}")
+        # Fallback data
+        return {
+            "temp": 12,
+            "feels_like": 10,
+            "description": "данные недоступны",
+            "icon": "🌤️"
+        }
+
 def fetch_feed_items(feed_list: List[Dict], max_items: int = 3, max_age_days: int = 7) -> List[Dict]:
     """
     Fetch and parse RSS feed items with error handling
@@ -271,7 +329,7 @@ def format_manual_news() -> str:
 def format_morning_news() -> str:
     """
     Format morning news for 8:30 AM auto-post
-    - Weather (funny style)
+    - Real weather data (OpenWeatherMap API)
     - Traffic (casual style)
     Russian language with Spanish humor
     
@@ -279,33 +337,48 @@ def format_morning_news() -> str:
         Formatted morning news string in Russian
     """
     try:
+        # Get real weather
+        weather = get_weather_madrid()
         traffic_news = fetch_traffic_news(max_items=2)
         
         # Morning message
-        lines = ["☀️ Доброе утро, Мадрид! 🇪🇸\n"]
+        lines = ["☀️ <b>Доброе утро, Мадрид!</b> 🇪🇸\n"]
         
-        # Weather (funny tone)
-        lines.append("🌤️ ПОГОДА НА СЕГОДНЯ:")
-        lines.append("Температура: 12°C")
-        lines.append("Ощущается: -5°C 🥶")
-        lines.append("Совет: одевайтесь слоями!")
-        lines.append("(Даже испанцы уже в пальто 😄)\n")
+        # Weather with real data
+        lines.append("🌤️ <b>ПОГОДА НА СЕГОДНЯ:</b>")
+        lines.append(f"{weather['icon']} {weather['description'].capitalize()}")
+        lines.append(f"Температура: {weather['temp']}°C")
+        lines.append(f"Ощущается: {weather['feels_like']}°C")
+        
+        # Funny advice based on temperature
+        if weather['feels_like'] < 10:
+            lines.append("🥶 Совет: одевайтесь слоями!")
+            lines.append("(Даже испанцы уже в пальто 😄)")
+        elif weather['feels_like'] > 25:
+            lines.append("🔥 Совет: прячьтесь в тень!")
+            lines.append("(Испанцы уже на сиесте 😴)")
+        else:
+            lines.append("👌 Совет: идеальная погода!")
+            lines.append("(Даже без куртки можно 😊)")
+        
+        lines.append("")
         
         # Traffic situation
-        lines.append("🚗 СИТУАЦИЯ НА ДОРОГАХ:")
+        lines.append("🚗 <b>СИТУАЦИЯ НА ДОРОГАХ:</b>")
         
         if traffic_news:
             for item in traffic_news[:2]:
                 title = item.get('title', 'Información de tráfico')
                 lines.append(f"• {title}")
         else:
-            lines.append("• M-30 → уже пробка (как всегда) 🚙")
+            lines.append("• M-30 → как всегда пробка 🚙")
             lines.append("• A-2 → порядок ✅")
+            lines.append("• Gran Vía → туристы everywhere 👥")
         
         lines.append("💡 Совет: метро быстрее! 🚇\n")
         
         # Close
-        lines.append("☕ Хорошего дня, мадридцы!")
+        lines.append("☕ <b>Хорошего дня, мадридцы!</b>")
         lines.append(f"🔗 <a href='{TRAFFIC_LINKS['dgt']}'>Полная информация о движении</a>")
         
         return "\n".join(lines)
