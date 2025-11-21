@@ -5,21 +5,23 @@ import logging
 from datetime import time, datetime, timedelta
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz  # NEW IMPORT
 
 logger = logging.getLogger(__name__)
 
 # Group chat ID for morning news
 MADRID_GROUP_ID = -1003433432009
 
-# Morning news time: 8:30 AM
-MORNING_NEWS_TIME = time(8, 30)
+# Madrid timezone
+MADRID_TZ = pytz.timezone('Europe/Madrid')
 
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 
 async def send_morning_news(bot: Bot):
     """
-    Send morning news at 8:30 AM
-    Weather (funny) + Traffic (casual)
+    Send morning news at 8:30 AM Madrid time
+    Weather (real data) + Traffic (casual)
     Russian language
     """
     try:
@@ -40,15 +42,13 @@ def start_scheduler(bot: Bot):
         # Remove existing jobs if any
         scheduler.remove_all_jobs()
         
-        # Add job: send morning news every day at 8:30 AM
+        # Add job: send morning news every day at 8:30 AM Madrid time
         scheduler.add_job(
             send_morning_news,
-            'cron',
-            hour=8,
-            minute=30,
+            CronTrigger(hour=8, minute=30, timezone=MADRID_TZ),
             args=[bot],
             id='morning_news_job',
-            name='Send morning news at 8:30 AM'
+            name='Send morning news at 8:30 AM Madrid time'
         )
         
         # Start scheduler if not running
@@ -56,7 +56,7 @@ def start_scheduler(bot: Bot):
             scheduler.start()
             logger.info("Scheduler started successfully")
         
-        logger.info("Morning news job scheduler for 8:30 AM daily")
+        logger.info("Morning news job scheduled for 8:30 AM Madrid time (CET/CEST)")
         
     except Exception as e:
         logger.error(f"Error starting scheduler: {e}")
