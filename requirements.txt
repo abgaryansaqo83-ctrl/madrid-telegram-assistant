@@ -27,3 +27,4 @@ aiohttp==3.10.10
 # Web Service
 Flask==3.0.0
 flask-cors==4.0.0
+gunicorn==21.2.0
