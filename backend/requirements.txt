@@ -21,3 +21,9 @@ beautifulsoup4==4.12.3
 
 # Additional useful packages
 aiohttp==3.10.10
+
+# Existing packages...
+
+# Web Service
+Flask==3.0.0
+flask-cors==4.0.0
