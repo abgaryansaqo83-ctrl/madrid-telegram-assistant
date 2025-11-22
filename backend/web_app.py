@@ -9,7 +9,8 @@ from backend.database import get_db_connection
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Ունենք հատուկ template_folder
+app = Flask(__name__, template_folder="../templates")
 app.secret_key = os.environ.get("SECRET_KEY", "default-key")  # Flask-ի session, security
 CORS(app)
 
