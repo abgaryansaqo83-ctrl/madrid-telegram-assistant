@@ -1,5 +1,3 @@
-# backend/bot.py
-
 import os
 import asyncio
 import logging
@@ -21,6 +19,38 @@ from backend.matching import (
     is_housing_request
 )
 from backend.scheduler import start_scheduler, stop_scheduler
+
+# --- Ավելացված AI unanswered-question engine
+from backend.ai.response import QuestionAutoResponder
+bot_responder = QuestionAutoResponder(timeout=300)  # 5 րոպե unanswered timeout
+
+def is_food_question(text):
+    keywords_ru = [
+        "суши", "пицца", "хачапури", "бургер", "шаурма", "стейк", "ресторан", "кафе", "еда", "вкусно",
+        "где поесть", "заведение", "кухня", "фастфуд", "кофе", "чай", "кебаб", "салат", "закуски", "гриль",
+        "бар", "винo", "пиво", "обед", "ужин", "завтрак"
+    ]
+    keywords_es = [
+        "sushi", "pizza", "hamburguesa", "restaurante", "cafetería", "comida", "dónde comer", "tapas",
+        "cocina", "fast food", "bocadillo", "ensalada", "carne", "pollo", "patatas", "bar", "cerveza",
+        "vino", "desayuno", "almuerzo", "cena", "grill", "asado", "churrasco"
+    ]
+    text_lower = text.lower()
+    return any(word in text_lower for word in keywords_ru + keywords_es)
+
+def is_trade_question(text):
+    keywords_ru = [
+        "куплю", "продам", "ищу", "продается", "сдам", "сниму", "аренда", "в аренду", "обмен",
+        "предлагаю", "услуга", "товар", "продажа", "купить", "вещь", "объявление", "предложение",
+        "запрос", "ищу услугу", "продаю", "перепродажа", "поиск", "срочно"
+    ]
+    keywords_es = [
+        "vendo", "busco", "alquilo", "compro", "venta", "ofrezco", "servicio", "intercambio",
+        "artículo", "anuncio", "alquiler", "buscar", "oferta", "solicito", "renta",
+        "necesito", "tengo", "quiero", "propongo", "mercancía", "compra", "sociedad"
+    ]
+    text_lower = text.lower()
+    return any(word in text_lower for word in keywords_ru + keywords_es)
 
 # Setup logging
 logging.basicConfig(
@@ -56,7 +86,6 @@ async def news_cmd(message: types.Message):
     try:
         # Get formatted news from news.py
         news_text = format_manual_news()
-        
         await message.answer(news_text, parse_mode="HTML")
         logger.info(f"User {message.from_user.id} requested news")
     except Exception as e:
@@ -69,11 +98,9 @@ async def offer_cmd(message: types.Message):
     try:
         lang = detect_lang(message.from_user.language_code)
         text = message.text.replace("/offer ", "").strip()
-        
         if not text:
             await message.answer(LANG[lang].get("empty_offer", "Please provide offer details"))
             return
-        
         add_offer(message.from_user.id, text)
         await message.answer(LANG[lang]["offer_saved"])
         logger.info(f"User {message.from_user.id} added offer: {text[:50]}")
@@ -87,11 +114,9 @@ async def request_cmd(message: types.Message):
     try:
         lang = detect_lang(message.from_user.language_code)
         text = message.text.replace("/request ", "").strip()
-        
         if not text:
             await message.answer(LANG[lang].get("empty_request", "Please provide request details"))
             return
-        
         add_request(message.from_user.id, text)
         await message.answer(LANG[lang]["request_saved"])
         logger.info(f"User {message.from_user.id} added request: {text[:50]}")
@@ -105,15 +130,12 @@ async def match_cmd(message: types.Message):
     try:
         lang = detect_lang(message.from_user.language_code)
         matches = find_matches()
-
         if not matches:
             await message.answer(LANG[lang]["no_matches"])
             return
-
         msg = LANG[lang]["matches"] + "\n\n"
         for req, off in matches:
             msg += f"👤 Request: {req['text']}\n💼 Offer: {off['text']}\n---\n"
-
         await message.answer(msg)
         logger.info(f"User {message.from_user.id} checked matches: {len(matches)} found")
     except Exception as e:
@@ -142,10 +164,10 @@ async def welcome_new_member(message: types.Message):
             # Skip if bot itself was added
             if new_member.id == bot.id:
                 continue
-            
+
             username = new_member.username if new_member.username else new_member.first_name
             mention = f"@{username}" if new_member.username else new_member.first_name
-            
+
             welcome_text = (
                 f"🎉 <b>Добро пожаловать в нашу группу, {mention}!</b>\n\n"
                 f"Мы рады приветствовать нового участника! "
@@ -156,32 +178,34 @@ async def welcome_new_member(message: types.Message):
                 f"📢 Следите за полезными новостями\n\n"
                 f"Спасибо, что присоединились к нам! 🇪🇸"
             )
-            
+
             await message.answer(welcome_text, parse_mode="HTML")
             logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
-            
+
     except Exception as e:
         logger.error(f"Error in welcome_new_member: {e}")
 
-# All text messages - housing matching
+# All text messages - enriched AI handler
 @dp.message(F.text)
 async def handle_message(message: types.Message):
-    # Save conversation to memory
     try:
         keywords = save_message_with_analysis(message.from_user.id, message.text)
-        
-        # Check if housing-related
+
+        # Նոր — բոտը unanswered AI հարցերի auto-reply ռուսերեն+իսպաներեն բառերով
+        question_id = str(message.message_id)
+        user_id = message.from_user.id
+        if is_trade_question(message.text):
+            bot_responder.add_question(user_id, message.text, question_id, search_type="item")
+        if is_food_question(message.text):
+            bot_responder.add_question(user_id, message.text, question_id, search_type="food")
+
+        # Housing logic (որպես նախկինում)
         if keywords.get('housing'):
-            # Determine if offer or request
             if is_housing_offer(message.text):
                 logger.info(f"Housing offer detected: {message.text[:50]}")
                 offer_data = parse_housing_offer(message.text)
-                
-                # Find matching requests
                 matches = find_matching_requests(offer_data)
-                
                 if matches:
-                    # Reply to group
                     match_count = len(matches)
                     await message.reply(
                         f"🏠 <b>{match_count} пользователей</b> ищут похожее жильё!\n\n"
@@ -189,16 +213,12 @@ async def handle_message(message: types.Message):
                         parse_mode="HTML"
                     )
                     logger.info(f"Replied with {match_count} matches")
-            
+
             elif is_housing_request(message.text):
                 logger.info(f"Housing request detected: {message.text[:50]}")
                 request_data = parse_housing_offer(message.text)
-                
-                # Find matching offers
                 matches = find_matching_offers(request_data)
-                
                 if matches:
-                    # Reply to group
                     match_count = len(matches)
                     await message.reply(
                         f"🏠 <b>{match_count} предложений</b> по вашим параметрам найдено!\n\n"
@@ -206,7 +226,7 @@ async def handle_message(message: types.Message):
                         parse_mode="HTML"
                     )
                     logger.info(f"Replied with {match_count} matches")
-    
+
     except Exception as e:
         logger.error(f"Error in handle_message: {e}")
 
@@ -215,15 +235,12 @@ async def main():
         # Initialize database
         init_db()
         logger.info("Database initialized")
-        
-        # Start scheduler for morning news
         try:
             start_scheduler(bot)
             logger.info("News scheduler started - Morning news at 8:30 AM Madrid time")
         except Exception as e:
             logger.error(f"Failed to start scheduler: {e}")
             logger.info("Bot will continue without scheduler")
-        
         logger.info("Starting bot...")
         await dp.start_polling(bot, skip_updates=True)
         
@@ -231,7 +248,6 @@ async def main():
         logger.error(f"Critical error in main: {e}")
         raise
     finally:
-        # Stop scheduler on bot shutdown
         try:
             stop_scheduler()
             logger.info("Scheduler stopped")
