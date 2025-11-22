@@ -18,3 +18,10 @@ beautifulsoup4==4.12.3
 
 # Additional useful packages
 aiohttp==3.10.10
+
+# Web Service (Flask)
+Flask==3.0.0
+flask-cors==4.0.0
+
+# Production server for Flask! (ОБЯЗАТЕЛЬНО)
+gunicorn==21.2.0  
