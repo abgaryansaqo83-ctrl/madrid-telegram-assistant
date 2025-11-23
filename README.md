@@ -4,24 +4,37 @@
 madrid-telegram-assistant/
 ├── backend/
 │   ├── __init__.py
-│   ├── bot.py              # Main bot logic
-│   ├── languages.py        # Multi-language support
-│   ├── news.py             # RSS feed fetching
-│   ├── jobs.py             # Job offers/requests matching
-│   │── scheduler.py         # Scheduler
-│   └── requirements.txt    # Python dependencies
+│   ├── ai/
+│   │   ├── food_reply.py
+│   │   ├── response.py
+│   │   └── traffic.py
+│   ├── bot.py
+│   ├── database.py
+│   ├── jobs.py
+│   ├── languages.py
+│   ├── matching.py
+│   ├── memory.py
+│   ├── news.py
+│   ├── scheduler.py
+│   ├── web_app.py
+│   └── requirements.txt
 ├── simplified/
 │   ├── __init__.py
-│   └── post_digest.py      # Digest posting logic   
-├── data/                   # JSON database files
+│   └── post_digest.py
+├── templates/
+│   ├── dashboard.html
+│   └── index.html
+├── data/
 │   └── .gitkeep
-├── Procfile                # Render deployment config
-├── runtime.txt             # Python version
-├── render.yaml             # Render service config
-├── .env                    # Environment variables (not in git)
-├── .env.example            # Example environment variables
-├── .gitignore              # Git ignore rules
-└── README.md               # This file
+├── .env
+├── .env.example
+├── .gitignore
+├── Procfile
+├── render.yaml
+├── requirements.txt
+├── runtime.txt
+└── README.md
+
 ```
 
 ## Installation
