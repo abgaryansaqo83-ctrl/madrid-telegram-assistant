@@ -4,7 +4,7 @@ import os
 import logging
 
 from backend.news import format_manual_news
-from backend.database import get_db_connection
+from backend.database import get_db_connection, init_db  # Ավելացրու ստեղ
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, template_folder="../templates")
 app.secret_key = os.environ.get("SECRET_KEY", "default-key")
 CORS(app)
+
+# ԵՍ կարևոր քայլ՝ բազայի ինիցիալիզացիա (table-ների ստեղծում) հենց սկզբում
+init_db()
 
 @app.route('/')
 def index():
@@ -35,7 +38,6 @@ def api_stats():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Adjusted for correct table/fields
         # Total users
         cursor.execute("SELECT COUNT(DISTINCT telegram_id) FROM users")
         total_users = cursor.fetchone()[0]
