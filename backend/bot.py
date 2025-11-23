@@ -12,7 +12,7 @@ from backend.news import format_manual_news
 from backend.database import init_db
 from backend.memory import save_message_with_analysis
 from backend.matching import (
-    parse_housing_offer, 
+    parse_housing_offer,
     find_matching_requests,
     find_matching_offers,
     is_housing_offer,
@@ -20,9 +20,11 @@ from backend.matching import (
 )
 from backend.scheduler import start_scheduler, stop_scheduler
 
-# --- Ավելացված AI unanswered-question engine
+# --- АИ модуль
 from backend.ai.response import QuestionAutoResponder
-bot_responder = QuestionAutoResponder(timeout=300)  # 5 րոպե unanswered timeout
+from backend.ai.traffic import madrid_morning_traffic
+
+bot_responder = QuestionAutoResponder(timeout=300)
 
 def is_food_question(text):
     keywords_ru = [
@@ -52,14 +54,12 @@ def is_trade_question(text):
     text_lower = text.lower()
     return any(word in text_lower for word in keywords_ru + keywords_es)
 
-# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -69,7 +69,6 @@ if not TOKEN:
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
-# /start
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
     try:
@@ -80,11 +79,9 @@ async def start_cmd(message: types.Message):
         logger.error(f"Error in start_cmd: {e}")
         await message.answer("Error processing command")
 
-# /news
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
     try:
-        # Get formatted news from news.py
         news_text = format_manual_news()
         await message.answer(news_text, parse_mode="HTML")
         logger.info(f"User {message.from_user.id} requested news")
@@ -92,7 +89,6 @@ async def news_cmd(message: types.Message):
         logger.error(f"Error in news_cmd: {e}")
         await message.answer("❌ Error al obtener noticias. Inténtalo más tarde.")
 
-# /offer
 @dp.message(F.text.startswith("/offer "))
 async def offer_cmd(message: types.Message):
     try:
@@ -108,7 +104,6 @@ async def offer_cmd(message: types.Message):
         logger.error(f"Error in offer_cmd: {e}")
         await message.answer("Error saving offer")
 
-# /request
 @dp.message(F.text.startswith("/request "))
 async def request_cmd(message: types.Message):
     try:
@@ -124,7 +119,6 @@ async def request_cmd(message: types.Message):
         logger.error(f"Error in request_cmd: {e}")
         await message.answer("Error saving request")
 
-# /match
 @dp.message(Command("match"))
 async def match_cmd(message: types.Message):
     try:
@@ -142,7 +136,6 @@ async def match_cmd(message: types.Message):
         logger.error(f"Error in match_cmd: {e}")
         await message.answer("Error finding matches")
 
-# /help command
 @dp.message(Command("help"))
 async def help_cmd(message: types.Message):
     try:
@@ -153,21 +146,14 @@ async def help_cmd(message: types.Message):
         logger.error(f"Error in help_cmd: {e}")
         await message.answer("Error showing help")
 
-# Welcome new members
 @dp.message(F.new_chat_members)
 async def welcome_new_member(message: types.Message):
-    """
-    Welcome new group members in Russian
-    """
     try:
         for new_member in message.new_chat_members:
-            # Skip if bot itself was added
             if new_member.id == bot.id:
                 continue
-
             username = new_member.username if new_member.username else new_member.first_name
             mention = f"@{username}" if new_member.username else new_member.first_name
-
             welcome_text = (
                 f"🎉 <b>Добро пожаловать в нашу группу, {mention}!</b>\n\n"
                 f"Мы рады приветствовать нового участника! "
@@ -178,28 +164,21 @@ async def welcome_new_member(message: types.Message):
                 f"📢 Следите за полезными новостями\n\n"
                 f"Спасибо, что присоединились к нам! 🇪🇸"
             )
-
             await message.answer(welcome_text, parse_mode="HTML")
             logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
-
     except Exception as e:
         logger.error(f"Error in welcome_new_member: {e}")
 
-# All text messages - enriched AI handler
 @dp.message(F.text)
 async def handle_message(message: types.Message):
     try:
         keywords = save_message_with_analysis(message.from_user.id, message.text)
-
-        # Նոր — բոտը unanswered AI հարցերի auto-reply ռուսերեն+իսպաներեն բառերով
         question_id = str(message.message_id)
         user_id = message.from_user.id
         if is_trade_question(message.text):
             bot_responder.add_question(user_id, message.text, question_id, search_type="item")
         if is_food_question(message.text):
             bot_responder.add_question(user_id, message.text, question_id, search_type="food")
-
-        # Housing logic (որպես նախկինում)
         if keywords.get('housing'):
             if is_housing_offer(message.text):
                 logger.info(f"Housing offer detected: {message.text[:50]}")
@@ -213,7 +192,6 @@ async def handle_message(message: types.Message):
                         parse_mode="HTML"
                     )
                     logger.info(f"Replied with {match_count} matches")
-
             elif is_housing_request(message.text):
                 logger.info(f"Housing request detected: {message.text[:50]}")
                 request_data = parse_housing_offer(message.text)
@@ -226,13 +204,11 @@ async def handle_message(message: types.Message):
                         parse_mode="HTML"
                     )
                     logger.info(f"Replied with {match_count} matches")
-
     except Exception as e:
         logger.error(f"Error in handle_message: {e}")
 
 async def main():
     try:
-        # Initialize database
         init_db()
         logger.info("Database initialized")
         try:
@@ -243,7 +219,6 @@ async def main():
             logger.info("Bot will continue without scheduler")
         logger.info("Starting bot...")
         await dp.start_polling(bot, skip_updates=True)
-        
     except Exception as e:
         logger.error(f"Critical error in main: {e}")
         raise
