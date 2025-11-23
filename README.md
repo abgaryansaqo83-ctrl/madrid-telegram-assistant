@@ -16,8 +16,7 @@ madrid-telegram-assistant/
 │   ├── memory.py
 │   ├── news.py
 │   ├── scheduler.py
-│   ├── web_app.py
-│   └── requirements.txt
+│   └── web_app.py
 ├── simplified/
 │   ├── __init__.py
 │   └── post_digest.py
