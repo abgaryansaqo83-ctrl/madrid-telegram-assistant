@@ -2,13 +2,10 @@
 
 import asyncio
 import logging
-from datetime import time, datetime, timedelta
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
-
-from backend.ai.traffic import madrid_morning_traffic
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +16,9 @@ scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 async def send_morning_news(bot: Bot):
     try:
         from backend.news import format_morning_news
-
         news_text = format_morning_news()
-        traffic_report = madrid_morning_traffic()
-        full_text = (
-            "Доброе утро! 👋\nСегодняшняя погода и дорожная ситуация:\n\n"
-            f"{news_text}\n\n"
-            f"{traffic_report}\n\n"
-            "Желаем отличного дня в Мадриде! ☀️"
-        )
-        await bot.send_message(MADRID_GROUP_ID, full_text, parse_mode="HTML")
+        await bot.send_message(MADRID_GROUP_ID, news_text, parse_mode="HTML")
         logger.info(f"Morning news sent to group {MADRID_GROUP_ID}")
-
     except Exception as e:
         logger.error(f"Error sending morning news: {e}")
 
