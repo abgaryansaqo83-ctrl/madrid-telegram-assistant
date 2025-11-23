@@ -9,22 +9,18 @@ from backend.database import get_db_connection
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Ունենք հատուկ template_folder
 app = Flask(__name__, template_folder="../templates")
-app.secret_key = os.environ.get("SECRET_KEY", "default-key")  # Flask-ի session, security
+app.secret_key = os.environ.get("SECRET_KEY", "default-key")
 CORS(app)
 
-# Home page
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Dashboard
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
 
-# API: Get news
 @app.route('/api/news')
 def api_news():
     try:
@@ -34,33 +30,28 @@ def api_news():
         logger.error(f"Error fetching news: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# API: Get bot statistics
 @app.route('/api/stats')
 def api_stats():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+        # Adjusted for correct table/fields
         # Total users
-        cursor.execute("SELECT COUNT(DISTINCT user_id) FROM messages")
+        cursor.execute("SELECT COUNT(DISTINCT telegram_id) FROM users")
         total_users = cursor.fetchone()[0]
-        
         # Total messages
-        cursor.execute("SELECT COUNT(*) FROM messages")
+        cursor.execute("SELECT COUNT(*) FROM conversations")
         total_messages = cursor.fetchone()[0]
-        
         # Recent messages
         cursor.execute("""
-            SELECT user_id, text, timestamp 
-            FROM messages 
-            ORDER BY timestamp DESC 
+            SELECT telegram_id, message, timestamp
+            FROM conversations
+            ORDER BY timestamp DESC
             LIMIT 10
         """)
         recent_messages = cursor.fetchall()
-        
         cursor.close()
         conn.close()
-        
         return jsonify({
             'success': True,
             'stats': {
@@ -68,9 +59,9 @@ def api_stats():
                 'total_messages': total_messages,
                 'recent_messages': [
                     {
-                        'user_id': msg[0],
-                        'text': msg[1],
-                        'timestamp': msg[2].isoformat() if msg[2] else None
+                        'telegram_id': msg[0],
+                        'message': msg[1],
+                        'timestamp': msg[2]
                     }
                     for msg in recent_messages
                 ]
@@ -80,7 +71,6 @@ def api_stats():
         logger.error(f"Error fetching stats: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Health check
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy'})
