@@ -20,7 +20,6 @@ from backend.matching import (
 )
 from backend.scheduler import start_scheduler, stop_scheduler
 
-# --- АИ модуль
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 
@@ -39,7 +38,6 @@ if not TOKEN:
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
-# --- Telegram menu в группе: на испанском!
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 menu_keyboard = ReplyKeyboardMarkup(
@@ -51,7 +49,7 @@ menu_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))  # прописать свой id
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
 
 bot_responder = QuestionAutoResponder(timeout=300)
 
@@ -82,27 +80,53 @@ async def culture_news(message: types.Message):
 
 @dp.message(F.text == "🍽️ Comida")
 async def food_help(message: types.Message):
-    await message.answer("¿Qué quieres comer? Escribe el nombre del plato o tipo de comida (ejemplo: sushi, paella, pizza).")
+    await message.answer("¿Qué quieres comer? Escribe el nombre del plato o tipo de comida (ejemplo: sushi, paella, pizza, бургер, паста, шаурма).")
 
-@dp.message(F.text.regexp(r"(sushi|pizza|paella|hamburguesa|tapas|barbacoa|jamón|ensalada|бургер|пицца|суши|хачапури)"))
+@dp.message(F.text.regexp(
+    r"(бургер|пицца|суши|хачапури|паста|рамен|шаурма|плов|салат|стейк|гриль|мясо|рыба|бар|кофе|чай|вино|хинкали|шашлык|фалафель|тако|паэлья|енсалада|тамале|маки|роллы|гёдза|бонито|окономияки|блины|креветки|мидии|коктейль|завтрак|ужин|обед|фрукт|овощ|еда|ресторан|кафе|pizza|pasta|sushi|burger|ramen|steak|salad|bar|wine|coffee|tapas|paella|ensalada|shawarma|falafel|bistro|teriyaki|noodle|grill|bruschetta|curry|fish|meat|cheese|breakfast|dinner|lunch|fruit|vegetable|food|restaurant|cafe)"
+))
 async def food_search(message: types.Message):
     from backend.ai.food_reply import find_food_place
-    reply = find_food_place(message.text)
-    await message.answer(reply)
+    query = message.text
+    result = find_food_place(query)
+    if not result or 'name' not in result:
+        alt_reply = (
+            "[translate:😥 По вашему запросу ничего не найдено.\n"
+            "Попробуйте другой тип еды или просто поищите что-нибудь вкусненькое рядом!\n"
+            "Например: 'пицца', 'суши', 'бургер', 'хачапури', 'паста'.]"
+        )
+        await message.answer(alt_reply)
+        return
+    name = result.get('name', 'Неизвестно')
+    address = result.get('address', 'Без адреса')
+    rating = result.get('rating', 'Нет оценки')
+    place_url = result.get('url', None)
+    if not place_url:
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={address.replace(' ', '+')}"
+    else:
+        maps_url = place_url
+    reply_text = (
+        f"[translate:Ресторан: {name}]\n"
+        f"[translate:Адрес: {address}]\n"
+        f"[translate:Оценка: {rating}]\n"
+        f"[translate:Смотреть на карте:] {maps_url}"
+    )
+    await message.answer(reply_text)
+    if result.get('alternatives'):
+        tips = "\n".join([f"- {alt}" for alt in result['alternatives']])
+        await message.answer(f"[translate:Вот еще несколько вариантов рядом:]\n{tips}")
 
 @dp.message(F.text == "📨 Sugerencias y reclamaciones")
 async def feedback(message: types.Message):
     await message.answer("[translate:Пожалуйста, напишите вашу жалобу или предложение. Оно будет отправлено напрямую администратору и не будет видно группе.]")
 
-@dp.message(F.text.regexp(r'^.{10,}$'))  # feedback forwarding
+@dp.message(F.text.regexp(r'^.{10,}$'))
 async def forward_feedback(message: types.Message):
     if message.text == "📨 Sugerencias y reclamaciones":
-        return  # чтобы не сработало на саму кнопку
+        return
     if ADMIN_CHAT_ID:
         await bot.send_message(ADMIN_CHAT_ID, f"[translate:Сообщение из группы]\n\n{message.text}")
     await message.answer("[translate:Ваше сообщение отправлено администратору.]")
-
-# --- ОСТАЛЬНОЕ стандартное: offer/request/match/housing/etc
 
 @dp.message(F.text.startswith("/offer "))
 async def offer_cmd(message: types.Message):
