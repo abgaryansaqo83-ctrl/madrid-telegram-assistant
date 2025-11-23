@@ -24,36 +24,6 @@ from backend.scheduler import start_scheduler, stop_scheduler
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 
-bot_responder = QuestionAutoResponder(timeout=300)
-
-def is_food_question(text):
-    keywords_ru = [
-        "суши", "пицца", "хачапури", "бургер", "шаурма", "стейк", "ресторан", "кафе", "еда", "вкусно",
-        "где поесть", "заведение", "кухня", "фастфуд", "кофе", "чай", "кебаб", "салат", "закуски", "гриль",
-        "бар", "винo", "пиво", "обед", "ужин", "завтрак"
-    ]
-    keywords_es = [
-        "sushi", "pizza", "hamburguesa", "restaurante", "cafetería", "comida", "dónde comer", "tapas",
-        "cocina", "fast food", "bocadillo", "ensalada", "carne", "pollo", "patatas", "bar", "cerveza",
-        "vino", "desayuno", "almuerzo", "cena", "grill", "asado", "churrasco"
-    ]
-    text_lower = text.lower()
-    return any(word in text_lower for word in keywords_ru + keywords_es)
-
-def is_trade_question(text):
-    keywords_ru = [
-        "куплю", "продам", "ищу", "продается", "сдам", "сниму", "аренда", "в аренду", "обмен",
-        "предлагаю", "услуга", "товар", "продажа", "купить", "вещь", "объявление", "предложение",
-        "запрос", "ищу услугу", "продаю", "перепродажа", "поиск", "срочно"
-    ]
-    keywords_es = [
-        "vendo", "busco", "alquilo", "compro", "venta", "ofrezco", "servicio", "intercambio",
-        "artículo", "anuncio", "alquiler", "buscar", "oferta", "solicito", "renta",
-        "necesito", "tengo", "quiero", "propongo", "mercancía", "compra", "sociedad"
-    ]
-    text_lower = text.lower()
-    return any(word in text_lower for word in keywords_ru + keywords_es)
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -69,165 +39,162 @@ if not TOKEN:
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
+# --- Telegram menu в группе: на испанском!
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
+menu_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🗓 Noticias culturales")],
+        [KeyboardButton(text="🍽️ Comida")],
+        [KeyboardButton(text="📨 Sugerencias y reclamaciones")]
+    ],
+    resize_keyboard=True
+)
+
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))  # прописать свой id
+
+bot_responder = QuestionAutoResponder(timeout=300)
+
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    try:
-        lang = detect_lang(message.from_user.language_code)
-        await message.answer(LANG[lang]["start"])
-        logger.info(f"User {message.from_user.id} started bot")
-    except Exception as e:
-        logger.error(f"Error in start_cmd: {e}")
-        await message.answer("Error processing command")
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang]["start"], reply_markup=menu_keyboard)
+    logger.info(f"User {message.from_user.id} started bot")
 
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
-    try:
-        news_text = format_manual_news()
-        await message.answer(news_text, parse_mode="HTML")
-        logger.info(f"User {message.from_user.id} requested news")
-    except Exception as e:
-        logger.error(f"Error in news_cmd: {e}")
-        await message.answer("❌ Error al obtener noticias. Inténtalo más tarde.")
-
-@dp.message(F.text.startswith("/offer "))
-async def offer_cmd(message: types.Message):
-    try:
-        lang = detect_lang(message.from_user.language_code)
-        text = message.text.replace("/offer ", "").strip()
-        if not text:
-            await message.answer(LANG[lang].get("empty_offer", "Please provide offer details"))
-            return
-        add_offer(message.from_user.id, text)
-        await message.answer(LANG[lang]["offer_saved"])
-        logger.info(f"User {message.from_user.id} added offer: {text[:50]}")
-    except Exception as e:
-        logger.error(f"Error in offer_cmd: {e}")
-        await message.answer("Error saving offer")
-
-@dp.message(F.text.startswith("/request "))
-async def request_cmd(message: types.Message):
-    try:
-        lang = detect_lang(message.from_user.language_code)
-        text = message.text.replace("/request ", "").strip()
-        if not text:
-            await message.answer(LANG[lang].get("empty_request", "Please provide request details"))
-            return
-        add_request(message.from_user.id, text)
-        await message.answer(LANG[lang]["request_saved"])
-        logger.info(f"User {message.from_user.id} added request: {text[:50]}")
-    except Exception as e:
-        logger.error(f"Error in request_cmd: {e}")
-        await message.answer("Error saving request")
-
-@dp.message(Command("match"))
-async def match_cmd(message: types.Message):
-    try:
-        lang = detect_lang(message.from_user.language_code)
-        matches = find_matches()
-        if not matches:
-            await message.answer(LANG[lang]["no_matches"])
-            return
-        msg = LANG[lang]["matches"] + "\n\n"
-        for req, off in matches:
-            msg += f"👤 Request: {req['text']}\n💼 Offer: {off['text']}\n---\n"
-        await message.answer(msg)
-        logger.info(f"User {message.from_user.id} checked matches: {len(matches)} found")
-    except Exception as e:
-        logger.error(f"Error in match_cmd: {e}")
-        await message.answer("Error finding matches")
+    news_text = format_manual_news()
+    await message.answer(news_text, parse_mode="HTML")
+    logger.info(f"User {message.from_user.id} requested news")
 
 @dp.message(Command("help"))
 async def help_cmd(message: types.Message):
-    try:
-        lang = detect_lang(message.from_user.language_code)
-        await message.answer(LANG[lang]["help"])
-        logger.info(f"User {message.from_user.id} requested help")
-    except Exception as e:
-        logger.error(f"Error in help_cmd: {e}")
-        await message.answer("Error showing help")
+    lang = detect_lang(message.from_user.language_code)
+    await message.answer(LANG[lang]["help"])
+    logger.info(f"User {message.from_user.id} requested help")
+
+# --- MENU HANDLERS
+
+@dp.message(F.text == "🗓 Noticias culturales")
+async def culture_news(message: types.Message):
+    news = format_manual_news()
+    await message.answer(news, parse_mode="HTML")
+
+@dp.message(F.text == "🍽️ Comida")
+async def food_help(message: types.Message):
+    await message.answer("¿Qué quieres comer? Escribe el nombre del plato o tipo de comida (ejemplo: sushi, paella, pizza).")
+
+@dp.message(F.text.regexp(r"(sushi|pizza|paella|hamburguesa|tapas|barbacoa|jamón|ensalada|бургер|пицца|суши|хачапури)"))
+async def food_search(message: types.Message):
+    from backend.ai.food_reply import find_food_place
+    reply = find_food_place(message.text)
+    await message.answer(reply)
+
+@dp.message(F.text == "📨 Sugerencias y reclamaciones")
+async def feedback(message: types.Message):
+    await message.answer("[translate:Пожалуйста, напишите вашу жалобу или предложение. Оно будет отправлено напрямую администратору и не будет видно группе.]")
+
+@dp.message(F.text.regexp(r'^.{10,}$'))  # feedback forwarding
+async def forward_feedback(message: types.Message):
+    if message.text == "📨 Sugerencias y reclamaciones":
+        return  # чтобы не сработало на саму кнопку
+    if ADMIN_CHAT_ID:
+        await bot.send_message(ADMIN_CHAT_ID, f"[translate:Сообщение из группы]\n\n{message.text}")
+    await message.answer("[translate:Ваше сообщение отправлено администратору.]")
+
+# --- ОСТАЛЬНОЕ стандартное: offer/request/match/housing/etc
+
+@dp.message(F.text.startswith("/offer "))
+async def offer_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
+    text = message.text.replace("/offer ", "").strip()
+    if not text:
+        await message.answer(LANG[lang].get("empty_offer", "Please provide offer details"))
+        return
+    add_offer(message.from_user.id, text)
+    await message.answer(LANG[lang]["offer_saved"])
+    logger.info(f"User {message.from_user.id} added offer: {text[:50]}")
+
+@dp.message(F.text.startswith("/request "))
+async def request_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
+    text = message.text.replace("/request ", "").strip()
+    if not text:
+        await message.answer(LANG[lang].get("empty_request", "Please provide request details"))
+        return
+    add_request(message.from_user.id, text)
+    await message.answer(LANG[lang]["request_saved"])
+    logger.info(f"User {message.from_user.id} added request: {text[:50]}")
+
+@dp.message(Command("match"))
+async def match_cmd(message: types.Message):
+    lang = detect_lang(message.from_user.language_code)
+    matches = find_matches()
+    if not matches:
+        await message.answer(LANG[lang]["no_matches"])
+        return
+    msg = LANG[lang]["matches"] + "\n\n"
+    for req, off in matches:
+        msg += f"👤 Request: {req['text']}\n💼 Offer: {off['text']}\n---\n"
+    await message.answer(msg)
+    logger.info(f"User {message.from_user.id} checked matches: {len(matches)} found")
 
 @dp.message(F.new_chat_members)
 async def welcome_new_member(message: types.Message):
-    try:
-        for new_member in message.new_chat_members:
-            if new_member.id == bot.id:
-                continue
-            username = new_member.username if new_member.username else new_member.first_name
-            mention = f"@{username}" if new_member.username else new_member.first_name
-            welcome_text = (
-                f"🎉 <b>Добро пожаловать в нашу группу, {mention}!</b>\n\n"
-                f"Мы рады приветствовать нового участника! "
-                f"Надеемся, что наша группа будет полезна для вас, "
-                f"и вы найдёте здесь всё, что ищете.\n\n"
-                f"💬 Не стесняйтесь задавать вопросы\n"
-                f"🤝 Делитесь опытом с другими участниками\n"
-                f"📢 Следите за полезными новостями\n\n"
-                f"Спасибо, что присоединились к нам! 🇪🇸"
-            )
-            await message.answer(welcome_text, parse_mode="HTML")
-            logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
-    except Exception as e:
-        logger.error(f"Error in welcome_new_member: {e}")
+    for new_member in message.new_chat_members:
+        if new_member.id == bot.id:
+            continue
+        username = new_member.username if new_member.username else new_member.first_name
+        mention = f"@{username}" if new_member.username else new_member.first_name
+        welcome_text = (
+            f"[translate:🎉 Добро пожаловать, {mention}!\n"
+            f"Мы рады приветствовать нового участника! "
+            f"Надеемся, что наша группа будет полезна для вас и вы найдёте здесь всё, что ищете.\n"
+            f"💬 Не стесняйтесь задавать вопросы\n"
+            f"🤝 Делитесь опытом с другими участниками\n"
+            f"📢 Следите за полезными новостями\n\n"
+            f"Спасибо, что присоединились к нам! 🇪🇸]"
+        )
+        await message.answer(welcome_text, parse_mode="HTML")
+        logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
 
 @dp.message(F.text)
 async def handle_message(message: types.Message):
-    try:
-        keywords = save_message_with_analysis(message.from_user.id, message.text)
-        question_id = str(message.message_id)
-        user_id = message.from_user.id
-        if is_trade_question(message.text):
-            bot_responder.add_question(user_id, message.text, question_id, search_type="item")
-        if is_food_question(message.text):
-            bot_responder.add_question(user_id, message.text, question_id, search_type="food")
-        if keywords.get('housing'):
-            if is_housing_offer(message.text):
-                logger.info(f"Housing offer detected: {message.text[:50]}")
-                offer_data = parse_housing_offer(message.text)
-                matches = find_matching_requests(offer_data)
-                if matches:
-                    match_count = len(matches)
-                    await message.reply(
-                        f"🏠 <b>{match_count} пользователей</b> ищут похожее жильё!\n\n"
-                        f"Администратор свяжет вас с заинтересованными.",
-                        parse_mode="HTML"
-                    )
-                    logger.info(f"Replied with {match_count} matches")
-            elif is_housing_request(message.text):
-                logger.info(f"Housing request detected: {message.text[:50]}")
-                request_data = parse_housing_offer(message.text)
-                matches = find_matching_offers(request_data)
-                if matches:
-                    match_count = len(matches)
-                    await message.reply(
-                        f"🏠 <b>{match_count} предложений</b> по вашим параметрам найдено!\n\n"
-                        f"Администратор свяжет вас с владельцами.",
-                        parse_mode="HTML"
-                    )
-                    logger.info(f"Replied with {match_count} matches")
-    except Exception as e:
-        logger.error(f"Error in handle_message: {e}")
+    keywords = save_message_with_analysis(message.from_user.id, message.text)
+    question_id = str(message.message_id)
+    user_id = message.from_user.id
+    from backend.matching import is_housing_offer, is_housing_request
+    if is_trade_question(message.text):
+        bot_responder.add_question(user_id, message.text, question_id, search_type="item")
+    if is_food_question(message.text):
+        bot_responder.add_question(user_id, message.text, question_id, search_type="food")
+    if keywords.get('housing'):
+        if is_housing_offer(message.text):
+            offer_data = parse_housing_offer(message.text)
+            matches = find_matching_requests(offer_data)
+            if matches:
+                match_count = len(matches)
+                await message.reply(
+                    f"[translate:🏠 {match_count} пользователей ищут похожее жильё!]\n\n"
+                    f"[translate:Администратор свяжет вас с заинтересованными.]",
+                    parse_mode="HTML"
+                )
+        elif is_housing_request(message.text):
+            request_data = parse_housing_offer(message.text)
+            matches = find_matching_offers(request_data)
+            if matches:
+                match_count = len(matches)
+                await message.reply(
+                    f"[translate:🏠 {match_count} предложений по вашим параметрам найдено!]\n\n"
+                    f"[translate:Администратор свяжет вас с владельцами.]",
+                    parse_mode="HTML"
+                )
 
 async def main():
-    try:
-        init_db()
-        logger.info("Database initialized")
-        try:
-            start_scheduler(bot)
-            logger.info("News scheduler started - Morning news at 8:30 AM Madrid time")
-        except Exception as e:
-            logger.error(f"Failed to start scheduler: {e}")
-            logger.info("Bot will continue without scheduler")
-        logger.info("Starting bot...")
-        await dp.start_polling(bot, skip_updates=True)
-    except Exception as e:
-        logger.error(f"Critical error in main: {e}")
-        raise
-    finally:
-        try:
-            stop_scheduler()
-            logger.info("Scheduler stopped")
-        except Exception as e:
-            logger.error(f"Error stopping scheduler: {e}")
+    init_db()
+    start_scheduler(bot)
+    logger.info("Starting bot...")
+    await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
