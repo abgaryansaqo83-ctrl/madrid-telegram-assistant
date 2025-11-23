@@ -19,7 +19,6 @@ from backend.matching import (
     is_housing_request
 )
 from backend.scheduler import start_scheduler, stop_scheduler
-
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 
@@ -30,7 +29,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("BOT_TOKEN missing in environment variables")
@@ -39,7 +37,6 @@ bot = Bot(TOKEN)
 dp = Dispatcher()
 
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-
 menu_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🗓 Noticias culturales")],
@@ -50,8 +47,12 @@ menu_keyboard = ReplyKeyboardMarkup(
 )
 
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
-
 bot_responder = QuestionAutoResponder(timeout=300)
+
+# --- NOVОЕ: простой checker для торговых сообщений
+def is_trade_question(text):
+    trade_keywords = ["купить", "продать", "товар", "объявление", "куплю", "продаю", "акция", "скидка", "перепродажа", "срочно", "Цена"]
+    return any(word in text.lower() for word in trade_keywords)
 
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
@@ -71,8 +72,6 @@ async def help_cmd(message: types.Message):
     await message.answer(LANG[lang]["help"])
     logger.info(f"User {message.from_user.id} requested help")
 
-# --- MENU HANDLERS
-
 @dp.message(F.text == "🗓 Noticias culturales")
 async def culture_news(message: types.Message):
     news = format_manual_news()
@@ -89,7 +88,7 @@ async def food_search(message: types.Message):
     from backend.ai.food_reply import find_food_place
     query = message.text
     result = find_food_place(query)
-    if not result or 'name' not in result:
+    if not result or 'name' not in result or not result['name']:
         alt_reply = (
             "[translate:😥 По вашему запросу ничего не найдено.\n"
             "Попробуйте другой тип еды или просто поищите что-нибудь вкусненькое рядом!\n"
@@ -187,10 +186,10 @@ async def handle_message(message: types.Message):
     keywords = save_message_with_analysis(message.from_user.id, message.text)
     question_id = str(message.message_id)
     user_id = message.from_user.id
-    from backend.matching import is_housing_offer, is_housing_request
+    # քննիչ ստուգումների ֆունկցիա արդեն աշխատում է
     if is_trade_question(message.text):
         bot_responder.add_question(user_id, message.text, question_id, search_type="item")
-    if is_food_question(message.text):
+    if "еда" in message.text.lower() or "food" in message.text.lower():
         bot_responder.add_question(user_id, message.text, question_id, search_type="food")
     if keywords.get('housing'):
         if is_housing_offer(message.text):
