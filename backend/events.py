@@ -9,32 +9,30 @@ import psycopg  # ensure psycopg is in requirements.txt
 
 logger = logging.getLogger(__name__)
 
-# ENV variable with DSN of the future events DB
-EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
-
+# ENV variable with DSN of the DB (կարող է լինել նույն DATABASE_URL-ը)
+EVENTS_DB_URL = os.getenv("EVENTS_DB_URL") or os.getenv("DATABASE_URL")
 
 Event = Dict[str, str]
 
 
 def _get_conn():
     """
-    Open a new PostgreSQL connection.
-
-    EVENTS_DB_URL format, for later:
-    postgres://user:password@host:port/dbname
+    Բացում է նոր PostgreSQL connection.
+    EVENTS_DB_URL օրինակ:
+      postgres://user:password@host:port/dbname
     """
     if not EVENTS_DB_URL:
-        raise RuntimeError("EVENTS_DB_URL is not set in environment variables")
+        raise RuntimeError("EVENTS_DB_URL is not set (or DATABASE_URL missing)")
     return psycopg.connect(EVENTS_DB_URL)
 
 
 def init_events_schema() -> None:
     """
-    Create events table if it does not exist yet.
-    Call this once on startup (or by a separate migration script).
+    Ստեղծում է madrid_events աղյուսակը, եթե դեռ չկա.
+    Կարող ես կանչել բոտի start-ի ժամանակ կամ առանձին migration script-ով.
     """
     sql = """
-    CREATE TABLE IF NOT EXISTS events (
+    CREATE TABLE IF NOT EXISTS madrid_events (
         id          SERIAL PRIMARY KEY,
         category    VARCHAR(32) NOT NULL,   -- cinema, restaurant, holiday
         title       TEXT NOT NULL,
@@ -48,15 +46,18 @@ def init_events_schema() -> None:
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
-    CREATE INDEX IF NOT EXISTS idx_events_category_time
-        ON events (category, start_time);
+    CREATE INDEX IF NOT EXISTS idx_madrid_events_category_time
+        ON madrid_events (category, start_time);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_madrid_events_identity
+        ON madrid_events (category, title, place, start_time);
     """
     try:
         with _get_conn() as conn, conn.cursor() as cur:
             cur.execute(sql)
-        logger.info("events table ensured/initialized")
+        logger.info("madrid_events table ensured/initialized")
     except Exception as e:
-        logger.error(f"Error initializing events schema: {e}", exc_info=True)
+        logger.error(f"Error initializing madrid_events schema: {e}", exc_info=True)
         raise
 
 
@@ -71,14 +72,17 @@ def upsert_event(
     extra: Optional[Dict] = None,
 ) -> None:
     """
-    Insert or update an event identified by (category, title, place, start_time).
+    Գրանցում/թարմացնում է event-ը, նույնացնողը (category, title, place, start_time).
 
-    Scrapers / manual scripts can call this to load events into DB.
+    Սա կօգտագործեն scrapers-ը կամ քո մանուալ loader սկրիպտները,
+    ոչ թե հենց Telegram բոտի հանդլերները։
     """
     sql = """
-    INSERT INTO events (category, title, place, start_time, end_time, city, link, extra)
-    VALUES (%(category)s, %(title)s, %(place)s, %(start_time)s, %(end_time)s,
-            %(city)s, %(link)s, %(extra)s)
+    INSERT INTO madrid_events
+        (category, title, place, start_time, end_time, city, link, extra)
+    VALUES
+        (%(category)s, %(title)s, %(place)s, %(start_time)s, %(end_time)s,
+         %(city)s, %(link)s, %(extra)s)
     ON CONFLICT (category, title, place, start_time)
     DO UPDATE SET
         end_time   = EXCLUDED.end_time,
@@ -87,9 +91,6 @@ def upsert_event(
         extra      = EXCLUDED.extra,
         updated_at = now();
     """
-    # To make ON CONFLICT work, you should later add a unique index:
-    # CREATE UNIQUE INDEX IF NOT EXISTS uniq_events_identity
-    #   ON events(category, title, place, start_time);
 
     params = {
         "category": category,
@@ -105,22 +106,22 @@ def upsert_event(
     try:
         with _get_conn() as conn, conn.cursor() as cur:
             cur.execute(sql, params)
-        logger.debug("Event upserted: %s — %s", category, title)
+        logger.debug("Madrid event upserted: %s — %s", category, title)
     except Exception as e:
-        logger.error(f"Error upserting event '{title}': {e}", exc_info=True)
+        logger.error(f"Error upserting Madrid event '{title}': {e}", exc_info=True)
         raise
 
 
 def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
     """
-    Generic helper to fetch upcoming events for a given category.
+    Generic helper՝ բերում է առաջիկա event-ները տրված category-ի համար.
     """
     now = datetime.utcnow()
-    horizon = now + timedelta(days=3)  # next 3 days
+    horizon = now + timedelta(days=3)  # հաջորդ 3 օրը
 
     sql = """
     SELECT title, place, start_time, link
-    FROM events
+    FROM madrid_events
     WHERE category = %(category)s
       AND start_time >= %(now)s
       AND start_time <= %(horizon)s
@@ -140,12 +141,14 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
             cur.execute(sql, params)
             rows = cur.fetchall()
     except Exception as e:
-        logger.error(f"Error fetching events for category='{category}': {e}", exc_info=True)
+        logger.error(
+            f"Error fetching madrid_events for category='{category}': {e}",
+            exc_info=True,
+        )
         return []
 
     events: List[Event] = []
     for title, place, start_time, link in rows:
-        # Format time as 'HH:MM' local-style; later you can adjust TZ.
         time_str = start_time.strftime("%d.%m %H:%M")
         events.append(
             {
@@ -160,21 +163,20 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
 
 def get_upcoming_cinema_events(limit: int = 3) -> List[Event]:
     """
-    Upcoming cinema/theatre/entertainment events in Madrid.
+    Առաջիկա 🎬 cinema/թատրոն/զվարճանքների event-ներ Մադրիդում.
     """
     return _fetch_upcoming_events("cinema", limit=limit)
 
 
 def get_upcoming_restaurant_events(limit: int = 3) -> List[Event]:
     """
-    Restaurant / bar events.
+    Առաջիկա 🍽 ռեստորանային / բարային event-ներ.
     """
     return _fetch_upcoming_events("restaurant", limit=limit)
 
 
 def get_upcoming_holiday_events(limit: int = 3) -> List[Event]:
     """
-    City holiday events (Christmas, New Year, other festivals).
+    Առաջիկա 🎉 քաղաքային տոնական event-ներ (Christmas, ՆԳ, փառատոններ...).
     """
     return _fetch_upcoming_events("holiday", limit=limit)
-
