@@ -5,7 +5,12 @@ import logging
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from backend.news import build_morning_event_messages
 import pytz
+
+texts = build_morning_event_messages()
+for text in texts:
+    await bot.send_message(CHAT_ID, text, disable_web_page_preview=True)
 
 logger = logging.getLogger(__name__)
 
