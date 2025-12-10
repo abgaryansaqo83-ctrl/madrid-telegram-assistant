@@ -158,37 +158,3 @@ def build_holidays_message(max_items: int = 3) -> str:
         lines.append(_format_event_line(ev))
 
     return "\n".join(lines)
-
-
-# ==========================
-# 5) УТРЕННИЙ ДАЙДЖЕСТ
-# ==========================
-def build_morning_event_messages(
-    max_cinema: int = 3,
-    max_restaurants: int = 3,
-    max_holidays: int = 3,
-) -> List[str]:
-    """
-    Возвращает список текстов для утреннего дайджеста.
-    Каждый элемент списка — отдельное сообщение.
-    Используется scheduler.py для отправки в группу.
-    """
-    messages: List[str] = []
-
-    overview = build_city_overview_message()
-    if overview:
-        messages.append(overview)
-
-    cinema = build_cinema_message(max_items=max_cinema)
-    if cinema:
-        messages.append(cinema)
-
-    restaurants = build_restaurant_message(max_items=max_restaurants)
-    if restaurants:
-        messages.append(restaurants)
-
-    holidays = build_holidays_message(max_items=max_holidays)
-    if holidays:
-        messages.append(holidays)
-
-    return messages
