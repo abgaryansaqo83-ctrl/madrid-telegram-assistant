@@ -6,8 +6,6 @@ from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from backend.news import build_morning_event_messages
-
 logger = logging.getLogger(__name__)
 
 MADRID_GROUP_ID = -1003433432009
