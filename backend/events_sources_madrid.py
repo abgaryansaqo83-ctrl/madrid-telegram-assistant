@@ -209,7 +209,7 @@ def _scrape_restaurant_event(url: str) -> Optional[Event]:
 #  PUBLIC FETCH FUNCTIONS
 # ==========================
 
-def fetch_madrid_cinema_events(limit: int = 10) -> List[Event]:
+def fetch_madrid_cinema_events(limit: int = 20) -> List[Event]:
     """
     Քաշում է մի քանի կինո event տարբեր աղբյուրներից և վերադարձնում list[Event].
     Հիմա՝  շատ պարզ՝ per-URL scraping h1 title-ով:
@@ -240,7 +240,7 @@ def fetch_madrid_cinema_events(limit: int = 10) -> List[Event]:
     return events[:limit]
 
 
-def fetch_madrid_theatre_events(limit: int = 10) -> List[Event]:
+def fetch_madrid_theatre_events(limit: int = 20) -> List[Event]:
     events: List[Event] = []
     for url in THEATRE_URLS:
         if len(events) >= limit:
@@ -251,7 +251,7 @@ def fetch_madrid_theatre_events(limit: int = 10) -> List[Event]:
     return events[:limit]
 
 
-def fetch_madrid_city_events(limit: int = 10) -> List[Event]:
+def fetch_madrid_city_events(limit: int = 20) -> List[Event]:
     events: List[Event] = []
     for url in CITY_EVENT_URLS:
         if len(events) >= limit:
@@ -262,7 +262,7 @@ def fetch_madrid_city_events(limit: int = 10) -> List[Event]:
     return events[:limit]
 
 
-def fetch_madrid_restaurant_events(limit: int = 10) -> List[Event]:
+def fetch_madrid_restaurant_events(limit: int = 20) -> List[Event]:
     events: List[Event] = []
     for url in RESTAURANT_EVENT_URLS:
         if len(events) >= limit:
