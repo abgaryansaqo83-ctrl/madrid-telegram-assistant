@@ -6,6 +6,7 @@ import logging
 
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from backend.events_sources_madrid import refresh_madrid_events_for_today
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
@@ -83,10 +84,11 @@ async def send_morning_news(bot: Bot):
 # ==========================
 def start_scheduler(bot: Bot):
     """
-    Սկսում է scheduler-ը և գրանցում առավոտյան job-ը (8:30 Madrid time).
+    Սկսում է scheduler-ը և գրանցում job-երը.
     """
     try:
         if not scheduler.running:
+            # Առավոտվա digest՝ 8:30
             scheduler.add_job(
                 send_morning_news,
                 CronTrigger(hour=8, minute=30),
@@ -94,8 +96,17 @@ def start_scheduler(bot: Bot):
                 id="morning_news",
                 replace_existing=True,
             )
+
+            # Գիշերային refresh madrid_events-ի համար՝ 03:00
+            scheduler.add_job(
+                refresh_madrid_events_for_today,
+                CronTrigger(hour=3, minute=0),
+                id="refresh_madrid_events",
+                replace_existing=True,
+            )
+
             scheduler.start()
-            logger.info("✅ Scheduler started (8:30 Madrid)")
+            logger.info("✅ Scheduler started (8:30 digest, 03:00 refresh)")
         else:
             logger.info("Scheduler already running")
     except Exception as e:
