@@ -23,7 +23,7 @@ from backend.matching import (
     is_housing_offer,
     is_housing_request,
 )
-from backend.scheduler import start_scheduler, stop_scheduler
+
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 from backend.news import (
@@ -448,7 +448,6 @@ async def handle_message(message: types.Message):
 async def main():
     init_db()
     init_jobs_schema()
-    start_scheduler(bot)
     logger.info("🚀 Starting Madrid Community Bot...")
     await dp.start_polling(bot, skip_updates=True)
 
