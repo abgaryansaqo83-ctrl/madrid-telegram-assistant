@@ -1,166 +1,173 @@
 # backend/jobs.py
 
-import json
-import os
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
+from typing import List, Dict, Set, Tuple
+
+import psycopg  # պետք է ավելացնես requirements.txt-ում
 
 logger = logging.getLogger(__name__)
 
-# Use absolute path for data files
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-DB_FILE = os.path.join(DATA_DIR, "jobs_db.json")
-POSTED_FILE = os.path.join(DATA_DIR, "posted_items.json")
+# Կօգտագործենք նույն DSN-ը, ինչ باقی backend-ը
+JOBS_DB_URL = os.getenv("EVENTS_DB_URL") or os.getenv("DATABASE_URL")
 
-# Create data directory if it doesn't exist
-os.makedirs(DATA_DIR, exist_ok=True)
+# Տիպեր
+Job = Dict[str, str]
+Match = Tuple[Job, Job]
 
-def init_db():
-    """Initialize database file if it doesn't exist"""
-    if not os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "w", encoding="utf-8") as f:
-                json.dump({"offers": [], "requests": []}, f)
-            logger.info(f"Created new database file: {DB_FILE}")
-        except Exception as e:
-            logger.error(f"Error creating database: {e}")
-            raise
 
-def load_db():
-    """Load database with error handling"""
+def _get_conn():
+    """
+    Բացում է նոր PostgreSQL connection `JOBS_DB_URL`-ով.
+    """
+    if not JOBS_DB_URL:
+        raise RuntimeError("JOBS_DB_URL/DATABASE_URL is not set in environment")
+    return psycopg.connect(JOBS_DB_URL)
+
+
+# ======================== Schema init helpers ==========================
+
+def init_jobs_schema() -> None:
+    """
+    Ստեղծում է madrid_jobs և madrid_posted աղյուսակները, եթե դեռ չկան.
+    Կանչիր բոտի start-ի ժամանակ (օրինակ bot.py main-ում մեկ անգամ).
+    """
+    sql = """
+    CREATE TABLE IF NOT EXISTS madrid_jobs (
+        id         SERIAL PRIMARY KEY,
+        user_id    BIGINT NOT NULL,
+        username   TEXT,
+        role       VARCHAR(16) NOT NULL,  -- 'offer' կամ 'request'
+        text       TEXT NOT NULL,
+        city       TEXT NOT NULL DEFAULT 'madrid',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_madrid_jobs_role_created
+        ON madrid_jobs (role, created_at);
+
+    CREATE TABLE IF NOT EXISTS madrid_posted (
+        id         SERIAL PRIMARY KEY,
+        key        TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """
     try:
-        init_db()  # Ensure DB exists
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            # Validate structure
-            if "offers" not in data or "requests" not in data:
-                logger.warning("Invalid DB structure, resetting...")
-                return {"offers": [], "requests": []}
-            return data
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error in database: {e}")
-        return {"offers": [], "requests": []}
+        with _get_conn() as conn, conn.cursor() as cur:
+            cur.execute(sql)
+        logger.info("madrid_jobs and madrid_posted tables ensured/initialized")
     except Exception as e:
-        logger.error(f"Error loading database: {e}")
-        return {"offers": [], "requests": []}
-
-def save_db(data):
-    """Save database with error handling"""
-    try:
-        with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        logger.debug("Database saved successfully")
-    except Exception as e:
-        logger.error(f"Error saving database: {e}")
+        logger.error(f"Error initializing jobs schema: {e}", exc_info=True)
         raise
 
-def add_offer(user, text):
-    """Add job offer"""
+
+# ======================== Core DB helpers ==============================
+
+def _insert_job(user, text: str, role: str) -> None:
+    """
+    Ներքին helper՝ INSERT madrid_jobs.
+    user – aiogram-ի User օրինակը կամ object, որ ունի id և username.
+    """
+    sql = """
+    INSERT INTO madrid_jobs (user_id, username, role, text)
+    VALUES (%(user_id)s, %(username)s, %(role)s, %(text)s);
+    """
+    params = {
+        "user_id": int(getattr(user, "id", 0)),
+        "username": getattr(user, "username", None),
+        "role": role,
+        "text": text,
+    }
     try:
-        db = load_db()
-        offer = {
-            "user": user,
-            "text": text,
-            "timestamp": datetime.now().isoformat()
-        }
-        db["offers"].append(offer)
-        save_db(db)
-        logger.info(f"Offer added by user {user}")
+        with _get_conn() as conn, conn.cursor() as cur:
+            cur.execute(sql, params)
+        logger.info("Inserted job (%s) from user_id=%s", role, params["user_id"])
     except Exception as e:
-        logger.error(f"Error adding offer: {e}")
+        logger.error(f"Error inserting job ({role}): {e}", exc_info=True)
         raise
 
-def add_request(user, text):
-    """Add job request"""
-    try:
-        db = load_db()
-        request = {
-            "user": user,
-            "text": text,
-            "timestamp": datetime.now().isoformat()
-        }
-        db["requests"].append(request)
-        save_db(db)
-        logger.info(f"Request added by user {user}")
-    except Exception as e:
-        logger.error(f"Error adding request: {e}")
-        raise
 
-def find_matches():
-    """Find matches between requests and offers"""
+def _fetch_jobs(role: str, days: int = 30) -> List[Job]:
+    """
+    Վերցնում է վերջին `days` օրերի jobs-երը տվյալ role-ի համար.
+    """
+    since = datetime.utcnow() - timedelta(days=days)
+    sql = """
+    SELECT id, user_id, username, role, text, city, created_at
+    FROM madrid_jobs
+    WHERE role = %(role)s
+      AND created_at >= %(since)s
+    ORDER BY created_at DESC;
+    """
+    params = {"role": role, "since": since}
     try:
-        db = load_db()
-        matches = []
-        
-        for req in db["requests"]:
-            for off in db["offers"]:
-                # Improved matching logic
-                req_words = set(req["text"].lower().split())
-                off_words = set(off["text"].lower().split())
-                
-                # Check if at least 2 words match or significant overlap
-                common_words = req_words & off_words
-                if len(common_words) >= 2 or (len(common_words) >= 1 and len(req_words) <= 3):
-                    matches.append((req, off))
-        
-        logger.info(f"Found {len(matches)} matches")
-        return matches
+        with _get_conn() as conn, conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
     except Exception as e:
-        logger.error(f"Error finding matches: {e}")
+        logger.error(f"Error fetching jobs for role={role}: {e}", exc_info=True)
         return []
 
-def get_last_posted_items():
-    """Get set of already posted items"""
-    try:
-        if os.path.exists(POSTED_FILE):
-            with open(POSTED_FILE, "r", encoding="utf-8") as f:
-                return set(json.load(f))
-        return set()
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding posted items: {e}")
-        return set()
-    except Exception as e:
-        logger.error(f"Error loading posted items: {e}")
-        return set()
+    jobs: List[Job] = []
+    for job_id, user_id, username, role, text, city, created_at in rows:
+        jobs.append(
+            {
+                "id": job_id,
+                "user_id": user_id,
+                "username": username,
+                "role": role,
+                "text": text,
+                "city": city,
+                "created_at": created_at.isoformat(),
+            }
+        )
+    return jobs
 
-def save_posted_item(key):
-    """Save posted item to avoid duplicates"""
-    try:
-        last = get_last_posted_items()
-        last.add(key)
-        
-        # Keep only last 1000 items to prevent file from growing too large
-        if len(last) > 1000:
-            last = set(list(last)[-1000:])
-        
-        with open(POSTED_FILE, "w", encoding="utf-8") as f:
-            json.dump(list(last), f, ensure_ascii=False, indent=2)
-        logger.debug(f"Saved posted item: {key}")
-    except Exception as e:
-        logger.error(f"Error saving posted item: {e}")
 
-def clear_old_entries(days=30):
-    """Clear entries older than specified days"""
-    try:
-        db = load_db()
-        cutoff = datetime.now().timestamp() - (days * 24 * 60 * 60)
-        
-        # Filter offers
-        db["offers"] = [
-            o for o in db["offers"] 
-            if "timestamp" not in o or datetime.fromisoformat(o["timestamp"]).timestamp() > cutoff
-        ]
-        
-        # Filter requests
-        db["requests"] = [
-            r for r in db["requests"] 
-            if "timestamp" not in r or datetime.fromisoformat(r["timestamp"]).timestamp() > cutoff
-        ]
-        
-        save_db(db)
-        logger.info(f"Cleared entries older than {days} days")
-    except Exception as e:
-        logger.error(f"Error clearing old entries: {e}")
+# ======================== Public API (offers/requests) =================
 
-# Initialize database on module import
-init_db()
+def add_offer(user, text: str) -> None:
+    """
+    Add job offer – հիմա INSERT է անում madrid_jobs աղյուսակում.
+    """
+    _insert_job(user, text, role="offer")
+
+
+def add_request(user, text: str) -> None:
+    """
+    Add job request – INSERT madrid_jobs-ում role='request'.
+    """
+    _insert_job(user, text, role="request")
+
+
+def find_matches(days: int = 30) -> List[Match]:
+    """
+    Find matches between requests and offers վերջին `days` օրերից.
+    Keyword matching logic-ը պահում ենք նույնը, բայց արդեն DB row-երով.
+    """
+    try:
+        requests = _fetch_jobs(role="request", days=days)
+        offers = _fetch_jobs(role="offer", days=days)
+
+        matches: List[Match] = []
+
+        for req in requests:
+            for off in offers:
+                req_words = set(req["text"].lower().split())
+                off_words = set(off["text"].lower().split())
+                common_words = req_words & off_words
+
+                if len(common_words) >= 2 or (
+                    len(common_words) >= 1 and len(req_words) <= 3
+                ):
+                    matches.append((req, off))
+
+        logger.info("Found %d matches", len(matches))
+        return matches
+    except Exception as e:
+        logger.error(f"Error finding matches: {e}", exc_info=True)
+        return []
+
+
+# ======================== Posted items (anti-duplicate)
