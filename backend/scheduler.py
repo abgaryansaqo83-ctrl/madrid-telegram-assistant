@@ -2,7 +2,6 @@
 # ==========================
 #  IMPORTS & SETUP
 # ==========================
-import asyncio
 import logging
 
 from aiogram import Bot
@@ -10,7 +9,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
-from backend.news import build_morning_event_messages
+from backend.news import (
+    build_city_overview_message,
+    build_cinema_message,
+    build_restaurant_message,
+    build_holidays_message,
+)
 from backend.ai.traffic import madrid_morning_traffic
 
 logger = logging.getLogger(__name__)
@@ -26,27 +30,42 @@ scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 # ==========================
 async def send_morning_news(bot: Bot):
     """
-    Առավոտյան news digest՝ մի քանի մեսիջներով:
-    1) Обзор дня
-    2) Кино
-    3) Рестораны
-    4) Праздники
-    + traffic բլոկ backend.ai.traffic-ից
+    Առավոտյան news digest մեկ կամ մի քանի մեսիջով.
+    Կազմում է overview + кино + рестораны + праздники + трафик.
     """
     try:
-        messages = build_morning_event_messages()
-        # traffic-ից messages list (եթե դատարկ չէ)
-        traffic_msgs = madrid_morning_traffic()
-        if traffic_msgs:
-            messages.extend(traffic_msgs)
+        parts = []
 
-        if not messages:
+        overview = build_city_overview_message()
+        if overview:
+            parts.append(overview)
+
+        cinema = build_cinema_message(max_items=3)
+        if cinema:
+            parts.append(cinema)
+
+        restaurants = build_restaurant_message(max_items=3)
+        if restaurants:
+            parts.append(restaurants)
+
+        holidays = build_holidays_message(max_items=3)
+        if holidays:
+            parts.append(holidays)
+
+        traffic_msgs = madrid_morning_traffic()
+        # եթե madrid_morning_traffic() վերադառում է str, դարձնենք list
+        if isinstance(traffic_msgs, str):
+            traffic_msgs = [traffic_msgs]
+        if traffic_msgs:
+            parts.extend([t for t in traffic_msgs if t])
+
+        if not parts:
             logger.info("No morning messages to send")
             return
 
-        for text in messages:
-            if not text:
-                continue
+        # Կարող ես կամ ամեն մասը առանձին մեսիջով ուղարկել,
+        # կամ մեկ մեծ տեքստով՝ "\n\n".join(parts)
+        for text in parts:
             await bot.send_message(
                 MADRID_GROUP_ID,
                 text,
