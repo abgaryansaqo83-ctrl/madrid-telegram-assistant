@@ -448,9 +448,14 @@ async def handle_message(message: types.Message):
 async def main():
     init_db()
     init_jobs_schema()
+
+    from backend.scheduler import start_scheduler  # lazy import
+    start_scheduler(bot)
+
     logger.info("🚀 Starting Madrid Community Bot...")
     await dp.start_polling(bot, skip_updates=True)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
