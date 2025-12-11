@@ -339,4 +339,11 @@ def refresh_madrid_events_for_today() -> None:
     for ev in fetch_madrid_city_events(limit=10):
         _save_event_to_db(ev)
 
+    def refresh_madrid_events_for_today() -> None:
+    ...
     logger.info("Refreshed madrid_events for today")
+
+
+if __name__ == "__main__":
+    # Մանուալ запуск Web Shell-ից
+    refresh_madrid_events_for_today()
