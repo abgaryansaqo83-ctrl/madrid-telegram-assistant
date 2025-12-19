@@ -156,16 +156,23 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
     question_id = str(message.message_id)
     text = message.text
 
-    # Եթե ուզում ես պահպանել history/аналитику, կարող ես թողնել
+    # Եթե user-ը նորից սեղմել է մենյուի կոճակ
+    if text in ("📰 Новости", "👨‍💼 Админ"):
+        await state.clear()
+        await message.answer("Главное меню:", reply_markup=main_menu_keyboard)
+        return
+
+    # պահում ենք history/аналитику, եթե պետք է
     bot_responder.add_question(user_id, text, question_id, search_type="city")
 
-    logger.info("BotMode.chat question: user_id=%s qid=%s text=%r",
-                user_id, question_id, text)
-
-    await message.answer(
-        "Пока что режим 🤖 Бот находится в доработке.\n"
-        "Можете воспользоваться разделом 📰 Новости или написать 👨‍💼 Админу."
+    logger.info(
+        "BotMode.chat question: user_id=%s qid=%s text=%r",
+        user_id,
+        question_id,
+        text,
     )
+
+    await message.answer("Ищу для вас варианты и подсказки…")
 
     try:
         answer_text = await ask_city_bot(text)
@@ -181,7 +188,6 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
         await message.answer(
             "Произошла ошибка при получении ответа от бота. Попробуйте ещё раз чуть позже."
         )
-
 
 # ==========================
 #  📰 НОВОСТИ — EVENTS / КИНО / ТЕАТР / БАРЫ / МЕРОПРИЯТИЯ
