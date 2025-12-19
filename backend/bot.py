@@ -11,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from dotenv import load_dotenv
+from backend.ai.bot_ai import ask_city_bot
 
 from backend.languages import LANG, detect_lang
 from backend.jobs import add_offer, add_request, find_matches, init_jobs_schema
@@ -136,6 +137,7 @@ async def help_cmd(message: types.Message):
 #  🤖 БОТ — AI / ՀԻՄՆԱԿԱՆ ՕԳՆԱԿԱՆ
 # ==========================
 
+
 @dp.message(F.text == "🤖 Бот")
 async def bot_mode_on(message: types.Message, state: FSMContext):
     await state.set_state(BotMode.chat)
@@ -154,27 +156,22 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
     question_id = str(message.message_id)
     text = message.text
 
-    # Գրանցում ենք հարցը history-ում
+    # Եթե ուզում ես պահպանել history/аналитику, կարող ես թողնել
     bot_responder.add_question(user_id, text, question_id, search_type="city")
+
     logger.info("BotMode.chat question: user_id=%s qid=%s text=%r",
                 user_id, question_id, text)
 
     await message.answer("Ищу для вас варианты и подсказки…")
 
-    # --- Այստեղ անմիջապես AI-ին հարց ենք տալիս ---
     try:
-        # Սրան համապատասխանեցրու քո QuestionAutoResponder-ին.
-        answer_text = await bot_responder.get_answer(
-            user_id=user_id,
-            question=text,
-            search_type="city",
-        )
+        answer_text = await ask_city_bot(text)
 
         if answer_text:
             await message.answer(answer_text)
         else:
             await message.answer(
-                "Пока не нашёл подходящих вариантов. Попробуйте сформулировать вопрос иначе или задайте другой вопрос."
+                "Пока не нашёл подходящих вариантов. Попробуйте сформулировать вопрос иначе."
             )
     except Exception as e:
         logger.error("AI error in BotMode.chat: %s", e, exc_info=True)
