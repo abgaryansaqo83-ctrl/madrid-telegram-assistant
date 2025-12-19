@@ -18,7 +18,7 @@ async def ask_city_bot(question: str) -> str:
     }
 
     payload = {
-        "model": "llama-3.1-sonar-small-128k-online",
+        "model": "sonar-small-chat",
         "messages": [
             {
                 "role": "system",
