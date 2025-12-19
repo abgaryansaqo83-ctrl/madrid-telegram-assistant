@@ -287,7 +287,7 @@ def _save_event_to_db(ev: Event) -> None:
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO madrid_events (title, place, time, date, category, source_url)
+            INSERT INTO madrid_events (title, place, start_time, date, category, source_url)
             VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT DO NOTHING;
             """,
