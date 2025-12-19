@@ -46,6 +46,12 @@ async def ask_city_bot(question: str) -> str:
         resp = await client.post(BASE_URL, headers=headers, json=payload)
         # debugging համար, եթե էլի 400 տա
         if resp.status_code >= 400:
+            print("Perplexity error status:", resp.status_code)
+            print("Perplexity error body:", resp.text)
+
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"].strip()
             try:
                 print("Perplexity error body:", resp.text)
             except Exception:
