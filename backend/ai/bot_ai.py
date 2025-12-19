@@ -2,6 +2,7 @@
 
 import os
 import httpx
+import re
 
 API_KEY = os.getenv("PERPLEXITY_API_KEY")
 if not API_KEY:
@@ -47,3 +48,6 @@ async def ask_city_bot(question: str) -> str:
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"].strip()
+        text = re.sub(r"\[\d+\]", "", text).strip()
+        return text
+        
