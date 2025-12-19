@@ -3,27 +3,28 @@
 import os
 import httpx
 
-API_KEY = os.getenv("AI_API_KEY")  # դնում ես քո Perplexity/OpenAI key-ը
+API_KEY = os.getenv("PERPLEXITY_API_KEY")  # ← փոխած տարբերակ
 
-BASE_URL = "https://api.perplexity.ai/chat/completions"  # կամ OpenAI URL
+if not API_KEY:
+    raise RuntimeError("PERPLEXITY_API_KEY is not set")
+
+BASE_URL = "https://api.perplexity.ai/chat/completions"
+
 
 async def ask_city_bot(question: str) -> str:
-    """
-    Հեշտ wrapper, որը հարցն ուղարկում է AI-ին և վերադարձնում 텍ստային պատասխանը.
-    """
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "sonar-small-chat",  # փոխիր քո մոդելով
+        "model": "sonar-small-chat",  # կամ ով որ օգտագործում ես
         "messages": [
             {
                 "role": "system",
                 "content": (
                     "Ты помощник для жителей и гостей Мадрида. "
                     "Отвечай кратко и по делу, давай конкретные рекомендации "
-                    "по городу, еде, транспорту, мероприятиям."
+                    "по городу, еде, транспорту и мероприятиям."
                 ),
             },
             {"role": "user", "content": question},
