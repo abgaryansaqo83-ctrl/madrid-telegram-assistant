@@ -113,7 +113,6 @@ def is_trade_question(text: str) -> bool:
 
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
-    # Կարող ես LANG["ru"]["start"]‑ը փոխել, բայց reply_markup-ը թող սա լինի
     lang = detect_lang(message.from_user.language_code)
     text = (
         "🇪🇸 Добро пожаловать в Madrid Community Bot!\n\n"
@@ -146,6 +145,7 @@ async def bot_mode_on(message: types.Message, state: FSMContext):
         "Чтобы вернуться в меню, нажмите любой из пунктов: 📰 Новости или 👨‍💼 Админ.",
         reply_markup=main_menu_keyboard,
     )
+    logger.info("User %s switched to Bot mode", message.from_user.id)
 
 
 @dp.message(BotMode.chat)
@@ -154,10 +154,33 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
     question_id = str(message.message_id)
     text = message.text
 
-    # Այստեղ ընդհանուր քաղաքային հարցերի համար օգտագործում ենք search_type="city"
+    # Գրանցում ենք հարցը history-ում
     bot_responder.add_question(user_id, text, question_id, search_type="city")
+    logger.info("BotMode.chat question: user_id=%s qid=%s text=%r",
+                user_id, question_id, text)
 
     await message.answer("Ищу для вас варианты и подсказки…")
+
+    # --- Այստեղ անմիջապես AI-ին հարց ենք տալիս ---
+    try:
+        # Սրան համապատասխանեցրու քո QuestionAutoResponder-ին.
+        answer_text = await bot_responder.get_answer(
+            user_id=user_id,
+            question=text,
+            search_type="city",
+        )
+
+        if answer_text:
+            await message.answer(answer_text)
+        else:
+            await message.answer(
+                "Пока не нашёл подходящих вариантов. Попробуйте сформулировать вопрос иначе или задайте другой вопрос."
+            )
+    except Exception as e:
+        logger.error("AI error in BotMode.chat: %s", e, exc_info=True)
+        await message.answer(
+            "Произошла ошибка при получении ответа от бота. Попробуйте ещё раз чуть позже."
+        )
 
 
 # ==========================
@@ -206,9 +229,7 @@ async def news_cinema(message: types.Message):
 
 @dp.message(F.text == "🎭 Театр")
 async def news_theatre(message: types.Message):
-    # Կարող ես նոր builder անել կամ reuse անել events.py-ից
     try:
-        # placeholder — փոխես քո իրական ֆունկցիայով
         holidays = build_holidays_message(max_items=5)
         text = "🎭 *Театр и сцена Мадрида:*\n\n" + holidays
         await message.answer(
@@ -245,7 +266,7 @@ async def news_events(message: types.Message):
 
 
 # ==========================
-#  🍽 COMIDA / FOOD SEARCH (Թողնում ենք, որ «Բոտ»-ին օգնի)
+#  🍽 COMIDA / FOOD SEARCH
 # ==========================
 
 @dp.message(F.text.regexp(
@@ -458,4 +479,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
