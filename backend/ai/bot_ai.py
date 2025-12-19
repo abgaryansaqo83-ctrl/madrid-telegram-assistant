@@ -1,3 +1,5 @@
+# backend/ai/bot_ai.py
+
 import os
 import httpx
 
@@ -18,7 +20,7 @@ async def ask_city_bot(question: str) -> str:
     }
 
     payload = {
-        "model": "sonar-small-chat",
+        "model": "sonar",  # նույն մոդելը, ինչ AskYerevan-ում է օգտագործվում
         "messages": [
             {
                 "role": "system",
@@ -28,19 +30,15 @@ async def ask_city_bot(question: str) -> str:
                     "по городу, еде, транспорту и мероприятиям."
                 ),
             },
-            {
-                "role": "user",
-                "content": question,
-            },
+            {"role": "user", "content": question},
         ],
+        "temperature": 0.7,
         "max_tokens": 300,
-        "temperature": 0.3,
     }
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(BASE_URL, headers=headers, json=payload)
 
-        # debug Perplexity errors
         if resp.status_code >= 400:
             print("Perplexity error status:", resp.status_code)
             print("Perplexity error body:", resp.text)
