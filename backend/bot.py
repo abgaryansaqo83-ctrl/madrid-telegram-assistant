@@ -162,7 +162,10 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
     logger.info("BotMode.chat question: user_id=%s qid=%s text=%r",
                 user_id, question_id, text)
 
-    await message.answer("Ищу для вас варианты и подсказки…")
+    await message.answer(
+        "Пока что режим 🤖 Бот находится в доработке.\n"
+        "Можете воспользоваться разделом 📰 Новости или написать 👨‍💼 Админу."
+    )
 
     try:
         answer_text = await ask_city_bot(text)
