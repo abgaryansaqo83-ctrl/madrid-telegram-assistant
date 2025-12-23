@@ -279,29 +279,35 @@ def fetch_madrid_restaurant_events(limit: int = 20) -> List[Event]:
 
 def _save_event_to_db(ev: Event) -> None:
     """
-    Գրանցում է event-ը madrid_events աղյուսակում.
-    Սպասում է, որ այդ աղյուսակը արդեն ստեղծված լինի init_db() / events schema-ով.
+    Գրանցում է event-ը madrid_events աղյուսակում՝
+    օգտագործելով backend.events.upsert_event() function-ը:
     """
+    from backend.events import upsert_event
+    from datetime import datetime
+    
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO madrid_events (title, place, start_time, date, category, source_url)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT DO NOTHING;
-            """,
-            (
-                ev.get("title", ""),
-                ev.get("place", ""),
-                ev.get("time", ""),
-                ev.get("date", _today_str()),
-                ev.get("category", ""),
-                ev.get("source_url", ""),
-            ),
+        # Convert date string to datetime
+        date_str = ev.get("date", _today_str())
+        start_time = datetime.fromisoformat(date_str)
+        
+        # Parse time if available
+        time_str = ev.get("time", "").strip()
+        if time_str:
+            # Simple format: "19:00" or "19:30"
+            try:
+                hour, minute = time_str.split(":")
+                start_time = start_time.replace(hour=int(hour), minute=int(minute))
+            except:
+                pass  # Keep date without time
+        
+        upsert_event(
+            category=ev.get("category", ""),
+            title=ev.get("title", ""),
+            place=ev.get("place", ""),
+            start_time=start_time,
+            link=ev.get("source_url", ""),
         )
-        conn.commit()
-        conn.close()
+        logger.debug(f"Saved event: {ev.get('title')}")
     except Exception as e:
         logger.error(f"Error saving event to DB: {e}", exc_info=True)
 
