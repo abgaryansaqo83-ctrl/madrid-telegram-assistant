@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from backend.database import get_connection  # նույնը, ինչով աշխատում է madrid_events [memory:47]
+from backend.events import _get_conn as get_connection
 
 logger = logging.getLogger(__name__)
 
