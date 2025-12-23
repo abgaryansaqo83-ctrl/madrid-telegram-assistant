@@ -475,6 +475,10 @@ async def handle_message(message: types.Message):
 async def main():
     init_db()
     init_jobs_schema()
+    
+    # Initialize madrid_events table
+    from backend.events import init_events_schema
+    init_events_schema()
 
     from backend.scheduler import start_scheduler  # lazy import
     start_scheduler(bot)
