@@ -54,11 +54,9 @@ async def send_morning_news(bot: Bot):
             parts.append(holidays)
 
         traffic_msgs = madrid_morning_traffic()
-        # եթե madrid_morning_traffic() վերադառում է str, դարձնենք list
-        if isinstance(traffic_msgs, str):
-            traffic_msgs = [traffic_msgs]
         if traffic_msgs:
-            parts.extend([t for t in traffic_msgs if t])
+            parts.extend(traffic_msgs)
+
 
         if not parts:
             logger.info("No morning messages to send")
