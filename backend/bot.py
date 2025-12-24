@@ -30,6 +30,7 @@ from backend.ai.traffic import madrid_morning_traffic
 from backend.news import (
     build_city_overview_message,
     build_cinema_message,
+    build_theatre_message,
     build_restaurant_message,
     build_holidays_message,
 )
@@ -236,8 +237,8 @@ async def news_cinema(message: types.Message):
 @dp.message(F.text == "🎭 Театр")
 async def news_theatre(message: types.Message):
     try:
-        holidays = build_holidays_message(max_items=3)
-        text = "🎭 *Театр и сцена Мадрида:*\n\n" + holidays
+        theatre = build_theatre_message(max_items=3)
+        text = "🎭 *Театр и сцена Мадрида:*\n\n" + theatre
         await message.answer(
             text, parse_mode="Markdown", disable_web_page_preview=True
         )
