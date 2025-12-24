@@ -50,6 +50,7 @@ bot = Bot(TOKEN)
 dp = Dispatcher()
 
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))  # Քո Telegram ID
 bot_responder = QuestionAutoResponder(timeout=300)
 
 # ==========================
@@ -469,6 +470,39 @@ async def handle_message(message: types.Message):
                 )
 
 
+
+
+# ==========================
+# OWNER PUBLISH TO GROUP
+# ==========================
+
+@dp.message(Command("publish"))
+async def publish_to_group_command(message: types.Message):
+    """
+    Օգտագործում: Reply անես հաղորդագրության վրա /publish
+    և այն կհրապարակվի խումբում որպես ադմին
+    """
+    if message.from_user.id != OWNER_ID:
+        await message.answer("❌ Դուք չունեք իրավունք օգտագործել այս հրամանը։")
+        return
+    
+    # Ստուգել թե reply է արված
+    if not message.reply_to_message:
+        await message.answer(
+            "💡 Օգտագործման եղանակը:\n"
+            "1️⃣ Ուղարկիր ինձ ցանկացած հաղորդագրություն\n"
+            "2️⃣ Reply արա դրան և գրիր /publish"
+        )
+        return
+    
+    try:
+        # Պատճենել հաղորդագրությունը խումբ
+        await message.reply_to_message.copy_to(
+            chat_id=ADMIN_CHAT_ID
+        )
+        await message.answer("✅ Հաղորդագրությունը հրապարակվեց խումբում!")
+    except Exception as e:
+        await message.answer(f"❌ Սխալ: {e}")
 # ==========================
 #  MAIN & SCHEDULER START
 # ==========================
