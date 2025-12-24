@@ -114,32 +114,56 @@ def upsert_event(
 
 def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
     """
-    Generic helper՝ բերում է առաջիկա event-ները տրված category-ի համար.
+    Վերցնում է random events-ներ տրված category-ի համար։
+    Եթե այսօրվա events-ներ չկան, վերցնում է մոտակա 3 օրվա events-ները։
     """
-    now = datetime.utcnow()
-    horizon = now + timedelta(days=3)  # հաջորդ 3 օրը
-
-    sql = """
-    SELECT title, place, start_time, link
+    from datetime import date
+    
+    today = date.today().isoformat()
+    next_3_days = (date.today() + timedelta(days=3)).isoformat()
+    
+    # Փորձիր գտնել այսօրվա events-ներ
+    sql_today = """
+    SELECT title, place, start_time, source_url
     FROM madrid_events
     WHERE category = %(category)s
-      AND start_time >= %(now)s
-      AND start_time <= %(horizon)s
-    ORDER BY start_time
+      AND date = %(today)s
+    ORDER BY RANDOM()
     LIMIT %(limit)s;
     """
-
-    params = {
+    
+    params_today = {
         "category": category,
-        "now": now,
-        "horizon": horizon,
+        "today": today,
         "limit": limit,
     }
-
+    
     try:
         with _get_conn() as conn, conn.cursor() as cur:
-            cur.execute(sql, params)
+            cur.execute(sql_today, params_today)
             rows = cur.fetchall()
+            
+            # Եթե այսօրվա events-ներ չկան, վերցրու մոտակա 3 օրվա
+            if not rows:
+                sql_upcoming = """
+                SELECT title, place, start_time, source_url
+                FROM madrid_events
+                WHERE category = %(category)s
+                  AND date BETWEEN %(today)s AND %(next_3_days)s
+                ORDER BY RANDOM()
+                LIMIT %(limit)s;
+                """
+                
+                params_upcoming = {
+                    "category": category,
+                    "today": today,
+                    "next_3_days": next_3_days,
+                    "limit": limit,
+                }
+                
+                cur.execute(sql_upcoming, params_upcoming)
+                rows = cur.fetchall()
+    
     except Exception as e:
         logger.error(
             f"Error fetching madrid_events for category='{category}': {e}",
@@ -148,14 +172,13 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
         return []
 
     events: List[Event] = []
-    for title, place, start_time, link in rows:
-        time_str = start_time.strftime("%d.%m %H:%M")
+    for title, place, start_time, source_url in rows:
         events.append(
             {
                 "title": title,
                 "place": place or "",
-                "time": time_str,
-                "link": link or "",
+                "time": start_time or "",
+                "link": source_url or "",
             }
         )
     return events
