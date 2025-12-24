@@ -186,9 +186,15 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
 
 def get_upcoming_cinema_events(limit: int = 3) -> List[Event]:
     """
-    Առաջիկա 🎬 cinema/թատրոն/զվարճանքների event-ներ Մադրիդում.
+    Առաջիկա 🎬 cinema event-ներ Մադրիդում.
     """
     return _fetch_upcoming_events("cinema", limit=limit)
+
+def get_upcoming_theatre_events(limit: int = 3) -> List[Event]:
+    """
+    Առաջիկա 🎭 թատրոնի event-ներ Մադրիդում.
+    """
+    return _fetch_upcoming_events("theatre", limit=limit)
 
 
 def get_upcoming_restaurant_events(limit: int = 3) -> List[Event]:
