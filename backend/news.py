@@ -21,21 +21,21 @@ Event = Dict[str, str]
 # ==========================
 def _format_event_line(event: Event) -> str:
     """
-    Формирует одну строку вида:
-    • Название — место — дата/время
+    Ֆորմատավորում է մեկ event card-ի տեսքով:
     """
     title = (event.get("title") or "").strip() or "Без названия"
     place = (event.get("place") or "").strip()
     time = (event.get("time") or "").strip()
-
-    parts: List[str] = [title]
+    
+    card = f"🎬 **{title}**\n"
+    
     if place:
-        parts.append(place)
+        card += f"📍 {place}\n"
+    
     if time:
-        parts.append(time)
-
-    return "• " + " — ".join(parts)
-
+        card += f"🕐 {time}\n"
+    
+    return card
 
 # ==========================
 # 1) ОБЗОР ГОРОДА
