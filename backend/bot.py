@@ -224,7 +224,7 @@ async def news_cmd(message: types.Message):
 @dp.message(F.text == "🎬 Кино")
 async def news_cinema(message: types.Message):
     try:
-        cinema = build_cinema_message(max_items=5)
+        cinema = build_cinema_message(max_items=3)
         await message.answer(
             cinema, parse_mode="Markdown", disable_web_page_preview=True
         )
@@ -236,7 +236,7 @@ async def news_cinema(message: types.Message):
 @dp.message(F.text == "🎭 Театр")
 async def news_theatre(message: types.Message):
     try:
-        holidays = build_holidays_message(max_items=5)
+        holidays = build_holidays_message(max_items=3)
         text = "🎭 *Театр и сцена Мадрида:*\n\n" + holidays
         await message.answer(
             text, parse_mode="Markdown", disable_web_page_preview=True
@@ -249,7 +249,7 @@ async def news_theatre(message: types.Message):
 @dp.message(F.text == "🍷 Бары и рестораны")
 async def news_bars(message: types.Message):
     try:
-        restaurants = build_restaurant_message(max_items=5)
+        restaurants = build_restaurant_message(max_items=3)
         await message.answer(
             restaurants, parse_mode="Markdown", disable_web_page_preview=True
         )
@@ -261,7 +261,7 @@ async def news_bars(message: types.Message):
 @dp.message(F.text == "🎉 Мероприятия")
 async def news_events(message: types.Message):
     try:
-        holidays = build_holidays_message(max_items=5)
+        holidays = build_holidays_message(max_items=3)
         text = "🎉 *Городские мероприятия и праздники:*\n\n" + holidays
         await message.answer(
             text, parse_mode="Markdown", disable_web_page_preview=True
