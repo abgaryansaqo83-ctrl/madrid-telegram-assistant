@@ -13,7 +13,8 @@ BASE_URL = "https://api.perplexity.ai/chat/completions"
 
 async def ask_city_bot(question: str) -> str:
     """
-    Պարզ async wrapper Perplexity Sonar chat API-ի համար.
+    AI assistant-ը Մադրիդի համար։
+    Մաքրում է citation թվերը և կտրում է երկար պատասխանները։
     """
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -21,21 +22,21 @@ async def ask_city_bot(question: str) -> str:
     }
 
     payload = {
-        "model": "sonar",  # նույն մոդելը, ինչ AskYerevan-ում է օգտագործվում
+        "model": "sonar",
         "messages": [
             {
                 "role": "system",
                 "content": (
-                            "Ты локальный бот-помощник для жителей Мадрида. "
-                            "Отвечай ТОЛЬКО на вопросы, связанные с Мадридом: еда, места, районы, "
-                            "транспорт, мероприятия, быт. Если вопрос не про Мадрид — коротко скажи, "
-                            "что ты отвечаешь только про Мадрид, и предложи переформулировать вопрос."
-              ),
+                    "Ты локальный бот-помощник для жителей Мадрида. "
+                    "Отвечай КРАТКО (максимум 3-4 предложения) на вопросы про Мадрид: "
+                    "еда, места, районы, транспорт, мероприятия, быт. "
+                    "Если вопрос не про Мадрид — коротко скажи, что ты отвечаешь только про Мадрид."
+                ),
             },
             {"role": "user", "content": question},
         ],
         "temperature": 0.7,
-        "max_tokens": 300,
+        "max_tokens": 200,  # Կրճատել 300-ից 200
     }
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -47,7 +48,19 @@ async def ask_city_bot(question: str) -> str:
 
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"].strip()
-        text = re.sub(r"\[\d+\]", "", text).strip()
-        return text
         
+        # Վերցնել պատասխանը
+        text = data["choices"][0]["message"]["content"].strip()
+        
+        # Մաքրել citation թվերը [1], [2], [3] և այլն
+        text = re.sub(r'\[\d+\]', '', text)
+        
+        # Հեռացնել ավել բացատները
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+        
+        # Կտրել եթե չափից երկար է (Telegram-ի 4096 char limit-ից շատ փոքր)
+        if len(text) > 800:
+            text = text[:800] + "..."
+        
+        return text
