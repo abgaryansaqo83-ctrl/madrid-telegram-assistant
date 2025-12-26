@@ -428,7 +428,7 @@ async def publish_to_group_command(message: types.Message):
     logger.info("/publish: reply message found")
 
     group_chat_id = os.getenv("CHAT_ID", "")  # ← CHAT_ID փոխարեն GROUP_CHAT_ID
-    logger.info(f"/publish: CHAT_ID={group_chat_id}"))
+    logger.info(f"/publish: CHAT_ID={group_chat_id}")
 
     if not group_chat_id:
         logger.error("/publish: CHAT_ID is empty")
