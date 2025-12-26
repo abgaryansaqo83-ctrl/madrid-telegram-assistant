@@ -50,14 +50,13 @@ bot = Bot(TOKEN)
 dp = Dispatcher()
 
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
-OWNER_ID = int(os.getenv("OWNER_ID", "0"))  # Քո Telegram ID
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 bot_responder = QuestionAutoResponder(timeout=300)
 
 # ==========================
 #  KEYBOARDS
 # ==========================
 
-# Գլխավոր մենյու (3 կոճակ)
 main_menu_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🤖 Бот")],
@@ -67,7 +66,6 @@ main_menu_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
-# Новости ենթամենյու
 news_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎬 Кино"), KeyboardButton(text="🎭 Театр")],
@@ -83,11 +81,10 @@ news_keyboard = ReplyKeyboardMarkup(
 # ==========================
 
 class BotMode(StatesGroup):
-    chat = State()      # ռեժիմ, որտեղ user-ը գրում է հարցեր «Бот»-ին
+    chat = State()
 
 class FeedbackMode(StatesGroup):
-    waiting_text = State()   # ռեժիմ, որտեղ սպասում ենք admin-ին նամակին
-
+    waiting_text = State()
 
 # ==========================
 #  HELPERS
@@ -95,20 +92,10 @@ class FeedbackMode(StatesGroup):
 
 def is_trade_question(text: str) -> bool:
     trade_keywords = [
-        "купить",
-        "продать",
-        "товар",
-        "объявление",
-        "куплю",
-        "продаю",
-        "акция",
-        "скидка",
-        "перепродажа",
-        "срочно",
-        "цена",
+        "купить", "продать", "товар", "объявление", "куплю",
+        "продаю", "акция", "скидка", "перепродажа", "срочно", "цена",
     ]
     return any(word in text.lower() for word in trade_keywords)
-
 
 # ==========================
 #  /START & BASIC COMMANDS
@@ -127,18 +114,15 @@ async def start_cmd(message: types.Message):
     await message.answer(text, reply_markup=main_menu_keyboard)
     logger.info(f"User {message.from_user.id} started bot")
 
-
 @dp.message(Command("help"))
 async def help_cmd(message: types.Message):
     lang = detect_lang(message.from_user.language_code)
     await message.answer(LANG[lang]["help"])
     logger.info(f"User {message.from_user.id} requested help")
 
-
 # ==========================
 #  🤖 БОТ — AI / ՀԻՄՆԱԿԱՆ ՕԳՆԱԿԱՆ
 # ==========================
-
 
 @dp.message(F.text == "🤖 Бот")
 async def bot_mode_on(message: types.Message, state: FSMContext):
@@ -151,20 +135,17 @@ async def bot_mode_on(message: types.Message, state: FSMContext):
     )
     logger.info("User %s switched to Bot mode", message.from_user.id)
 
-
 @dp.message(BotMode.chat)
 async def bot_mode_chat(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question_id = str(message.message_id)
     text = message.text
 
-    # Եթե user-ը նորից սեղմել է մենյուի կոճակ
     if text in ("📰 Новости", "👨‍💼 Админ"):
         await state.clear()
         await message.answer("Главное меню:", reply_markup=main_menu_keyboard)
         return
 
-    # պահում ենք history/аналитику, եթե պետք է
     bot_responder.add_question(user_id, text, question_id, search_type="city")
 
     logger.info(
@@ -207,7 +188,6 @@ async def back_to_menu(message: types.Message):
         "Главное меню:", reply_markup=main_menu_keyboard
     )
 
-# Կարճ /news command թողնենք, որ ուղիղ սրանից օգտվի
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
     try:
@@ -222,7 +202,6 @@ async def news_cmd(message: types.Message):
         await message.answer("📰 Новости временно недоступны")
     logger.info(f"User {message.from_user.id} requested news")
 
-
 @dp.message(F.text == "🎬 Кино")
 async def news_cinema(message: types.Message):
     try:
@@ -233,7 +212,6 @@ async def news_cinema(message: types.Message):
     except Exception as e:
         logger.error(f"Cinema news error: {e}")
         await message.answer("🎬 Раздел «Кино» временно недоступен.")
-
 
 @dp.message(F.text == "🎭 Театр")
 async def news_theatre(message: types.Message):
@@ -247,7 +225,6 @@ async def news_theatre(message: types.Message):
         logger.error(f"Theatre news error: {e}")
         await message.answer("🎭 Раздел «Театр» временно недоступен.")
 
-
 @dp.message(F.text == "🍷 Бары и рестораны")
 async def news_bars(message: types.Message):
     try:
@@ -258,7 +235,6 @@ async def news_bars(message: types.Message):
     except Exception as e:
         logger.error(f"Restaurant news error: {e}")
         await message.answer("🍷 Раздел «Бары и рестораны» временно недоступен.")
-
 
 @dp.message(F.text == "🎉 Мероприятия")
 async def news_events(message: types.Message):
@@ -271,7 +247,6 @@ async def news_events(message: types.Message):
     except Exception as e:
         logger.error(f"Events news error: {e}")
         await message.answer("🎉 Раздел «Мероприятия» временно недоступен.")
-
 
 # ==========================
 #  🍽 COMIDA / FOOD SEARCH
@@ -319,7 +294,6 @@ async def food_search(message: types.Message):
         tips = "\n".join([f"- {alt}" for alt in result["alternatives"]])
         await message.answer(f"💡 **Вот еще несколько вариантов рядом:**\n{tips}")
 
-
 # ==========================
 #  👨‍💼 АДМИН — FEEDBACK
 # ==========================
@@ -331,7 +305,6 @@ async def feedback_start(message: types.Message, state: FSMContext):
         "Напишите вашу жалобу или предложение.\n"
         "Сообщение будет отправлено напрямую администратору и не будет видно группе."
     )
-
 
 @dp.message(FeedbackMode.waiting_text)
 async def feedback_receive(message: types.Message, state: FSMContext):
@@ -350,7 +323,6 @@ async def feedback_receive(message: types.Message, state: FSMContext):
         "✅ Ваше сообщение было отправлено администратору. Спасибо за ваше обращение!"
     )
 
-
 # ==========================
 #  JOBS / MATCHING ԿՈՄԱՆԴՆԵՐ
 # ==========================
@@ -368,7 +340,6 @@ async def offer_cmd(message: types.Message):
     await message.answer(LANG[lang]["offer_saved"])
     logger.info(f"User {message.from_user.id} added offer: {text[:50]}")
 
-
 @dp.message(F.text.startswith("/request "))
 async def request_cmd(message: types.Message):
     lang = detect_lang(message.from_user.language_code)
@@ -381,7 +352,6 @@ async def request_cmd(message: types.Message):
     add_request(message.from_user, text)
     await message.answer(LANG[lang]["request_saved"])
     logger.info(f"User {message.from_user.id} added request: {text[:50]}")
-
 
 @dp.message(Command("match"))
 async def match_cmd(message: types.Message):
@@ -399,7 +369,6 @@ async def match_cmd(message: types.Message):
         )
     await message.answer(msg, parse_mode="Markdown")
     logger.info(f"User {message.from_user.id} checked matches: {len(matches)} found")
-
 
 # ==========================
 #  WELCOME ՆՈՐ ՄԱՍՆԱԿԻՑՆԵՐԻ
@@ -424,6 +393,92 @@ async def welcome_new_member(message: types.Message):
         await message.answer(welcome_text, parse_mode="Markdown")
         logger.info(f"Welcomed new member: {username} (ID: {new_member.id})")
 
+# ==========================
+# OWNER PUBLISH TO GROUP
+# ==========================
+
+@dp.message(Command("publish"))
+async def publish_to_group_command(message: types.Message):
+    """
+    Օգտագործում: Reply անես հաղորդագրության վրա /publish
+    և այն կհրապարակվի խումբում
+    """
+    logger.info(
+        f"/publish command received from user_id={message.from_user.id}, OWNER_ID={OWNER_ID}"
+    )
+
+    if message.from_user.id != OWNER_ID:
+        logger.warning(f"Unauthorized /publish attempt by {message.from_user.id}")
+        await message.answer("❌ Այս հրամանը հասանելի է միայն բոտի տիրոջը։")
+        return
+
+    logger.info("/publish: owner verified")
+
+    if not message.reply_to_message:
+        logger.info("/publish: no reply message")
+        await message.answer(
+            "💡 Օգտագործման եղանակը:\n"
+            "1️⃣ Ուղարկիր ինձ ցանկացած հաղորդագրություն\n"
+            "2️⃣ Reply արա դրան և գրիր /publish\n"
+            "3️⃣ Հաղորդագրությունը կհրապարակվի խմբում"
+        )
+        return
+
+    reply = message.reply_to_message
+    logger.info("/publish: reply message found")
+
+    group_chat_id = os.getenv("GROUP_CHAT_ID", "")
+    logger.info(f"/publish: GROUP_CHAT_ID={group_chat_id}")
+
+    if not group_chat_id:
+        logger.error("/publish: GROUP_CHAT_ID is empty")
+        await message.answer(
+            "❌ GROUP_CHAT_ID փոփոխականը չի գտնվել environment variables-ում։\n"
+            "Մուտք գործիր Render dashboard → Environment և ավելացրու GROUP_CHAT_ID=քո խմբի ID‑ն։"
+        )
+        return
+
+    try:
+        logger.info("/publish: attempting to send message to group")
+
+        if reply.text:
+            logger.info("/publish: sending text message")
+            await bot.send_message(chat_id=group_chat_id, text=reply.text)
+        elif reply.photo:
+            logger.info("/publish: sending photo")
+            await bot.send_photo(
+                chat_id=group_chat_id,
+                photo=reply.photo[-1].file_id,
+                caption=reply.caption or "",
+            )
+        elif reply.video:
+            logger.info("/publish: sending video")
+            await bot.send_video(
+                chat_id=group_chat_id,
+                video=reply.video.file_id,
+                caption=reply.caption or "",
+            )
+        elif reply.document:
+            logger.info("/publish: sending document")
+            await bot.send_document(
+                chat_id=group_chat_id,
+                document=reply.document.file_id,
+                caption=reply.caption or "",
+            )
+        else:
+            logger.warning("/publish: unsupported message type")
+            await message.answer(
+                "Այս տեսակի հաղորդագրությունը դեռ չեմ կարող հրապարակել "
+                "(պետք է լինի text, photo, video կամ document)։"
+            )
+            return
+
+        logger.info("/publish: message published successfully")
+        await message.answer("✅ Հաղորդագրությունը հրապարակվեց Madrid խմբում։")
+
+    except Exception as e:
+        logger.exception(f"/publish error: {e}")
+        await message.answer(f"❌ Սխալ հրապարակելիս:\n{e}")
 
 # ==========================
 #  FALLBACK MESSAGE HANDLER
@@ -431,12 +486,14 @@ async def welcome_new_member(message: types.Message):
 
 @dp.message(F.text)
 async def handle_message(message: types.Message):
-    # Սա աշխատում է միայն եթե չենք BotMode.chat / FeedbackMode-ում
+    # ⬇️ ԿԱՐԵՎՈՐ — command-ները բաց թողնել
+    if message.text.startswith("/"):
+        return
+    
     keywords = save_message_with_analysis(message.from_user.id, message.text)
     question_id = str(message.message_id)
     user_id = message.from_user.id
 
-    # Auto-responder logic
     if is_trade_question(message.text):
         bot_responder.add_question(
             user_id, message.text, question_id, search_type="item"
@@ -446,7 +503,6 @@ async def handle_message(message: types.Message):
             user_id, message.text, question_id, search_type="food"
         )
 
-    # Housing matching
     if keywords.get("housing"):
         if is_housing_offer(message.text):
             offer_data = parse_housing_offer(message.text)
@@ -469,40 +525,6 @@ async def handle_message(message: types.Message):
                     parse_mode="Markdown",
                 )
 
-
-
-
-# ==========================
-# OWNER PUBLISH TO GROUP
-# ==========================
-
-@dp.message(Command("publish"))
-async def publish_to_group_command(message: types.Message):
-    """
-    Օգտագործում: Reply անես հաղորդագրության վրա /publish
-    և այն կհրապարակվի խումբում որպես ադմին
-    """
-    if message.from_user.id != OWNER_ID:
-        await message.answer("❌ Դուք չունեք իրավունք օգտագործել այս հրամանը։")
-        return
-    
-    # Ստուգել թե reply է արված
-    if not message.reply_to_message:
-        await message.answer(
-            "💡 Օգտագործման եղանակը:\n"
-            "1️⃣ Ուղարկիր ինձ ցանկացած հաղորդագրություն\n"
-            "2️⃣ Reply արա դրան և գրիր /publish"
-        )
-        return
-    
-    try:
-        # Պատճենել հաղորդագրությունը խումբ
-        await message.reply_to_message.copy_to(
-            chat_id=ADMIN_CHAT_ID
-        )
-        await message.answer("✅ Հաղորդագրությունը հրապարակվեց խումբում!")
-    except Exception as e:
-        await message.answer(f"❌ Սխալ: {e}")
 # ==========================
 #  MAIN & SCHEDULER START
 # ==========================
@@ -511,11 +533,10 @@ async def main():
     init_db()
     init_jobs_schema()
     
-    # Initialize madrid_events table
     from backend.events import init_events_schema
     init_events_schema()
 
-    from backend.scheduler import start_scheduler  # lazy import
+    from backend.scheduler import start_scheduler
     start_scheduler(bot)
 
     logger.info("🚀 Starting Madrid Community Bot...")
