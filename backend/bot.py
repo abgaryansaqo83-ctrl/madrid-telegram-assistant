@@ -427,14 +427,14 @@ async def publish_to_group_command(message: types.Message):
     reply = message.reply_to_message
     logger.info("/publish: reply message found")
 
-    group_chat_id = os.getenv("GROUP_CHAT_ID", "")
-    logger.info(f"/publish: GROUP_CHAT_ID={group_chat_id}")
+    group_chat_id = os.getenv("CHAT_ID", "")  # ← CHAT_ID փոխարեն GROUP_CHAT_ID
+    logger.info(f"/publish: CHAT_ID={group_chat_id}"))
 
     if not group_chat_id:
-        logger.error("/publish: GROUP_CHAT_ID is empty")
+        logger.error("/publish: CHAT_ID is empty")
         await message.answer(
-            "❌ GROUP_CHAT_ID փոփոխականը չի գտնվել environment variables-ում։\n"
-            "Մուտք գործիր Render dashboard → Environment և ավելացրու GROUP_CHAT_ID=քո խմբի ID‑ն։"
+            "❌ CHAT_ID փոփոխականը չի գտնվել environment variables-ում։\n"
+            "Մուտք գործիր Render dashboard → Environment և ավելացրու CHAT_ID=քո խմբի ID‑ն։"
         )
         return
 
