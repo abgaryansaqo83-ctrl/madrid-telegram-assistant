@@ -59,23 +59,25 @@ bot_responder = QuestionAutoResponder(timeout=300)
 
 main_menu_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🤖 Бот")],
-        [KeyboardButton(text="📰 Новости")],
-        [KeyboardButton(text="👨‍💼 Админ")],
+        [KeyboardButton(text="🤖 Старт‑бот / Iniciar bot")],
+        [KeyboardButton(text="📰 Новости / Noticias")],
+        [KeyboardButton(text="👨‍💼 Админ / Admin")],
     ],
     resize_keyboard=True,
 )
 
 news_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🎬 Кино"), KeyboardButton(text="🎭 Театр")],
-        [KeyboardButton(text="🍷 Бары и рестораны")],
-        [KeyboardButton(text="🎉 Мероприятия")],
-        [KeyboardButton(text="⬅️ В меню")],
+        [
+            KeyboardButton(text="🎬 Кино / Cine"),
+            KeyboardButton(text="🎭 Театр / Teatro"),
+        ],
+        [KeyboardButton(text="🍷 Бары и рест. / Bares y rest.")],
+        [KeyboardButton(text="🎉 Мероприятия / Eventos")],
+        [KeyboardButton(text="⬅️ В меню / menú")],
     ],
     resize_keyboard=True,
 )
-
 # ==========================
 #  STATES
 # ==========================
