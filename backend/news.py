@@ -1,4 +1,5 @@
 # backend/news.py
+
 # ==========================
 #  IMPORTS & TYPES
 # ==========================
@@ -20,23 +21,64 @@ Event = Dict[str, str]
 # ==========================
 #  HELPERS
 # ==========================
-def _format_event_line(event: Event) -> str:
+def _format_event_line(event: Event, icon: str = "🎫") -> str:
     """
-    Ֆորմատավորում է մեկ event card-ի տեսքով:
+    Ֆորմատավորում է մեկ event card-ի տեսքով (առանց նկարների).
+    Կկարտա.
+      🎫 Title
+      📍 Place
+      🕐 Time
+      🔗 URL (եթե կա)
     """
     title = (event.get("title") or "").strip() or "Без названия"
     place = (event.get("place") or "").strip()
     time = (event.get("time") or "").strip()
-    
-    card = f"🎬 **{title}**\n"
-    
+    url = (event.get("url") or "").strip()
+
+    lines: List[str] = []
+    lines.append(f"{icon} *{title}*")
+
     if place:
-        card += f"📍 {place}\n"
-    
+        lines.append(f"📍 {place}")
+
     if time:
-        card += f"🕐 {time}\n"
-    
-    return card
+        lines.append(f"🕐 {time}")
+
+    if url:
+        lines.append(f"🔗 [Подробнее]({url})")
+
+    return "\n".join(lines)
+
+
+def _build_block(
+    title_line: str,
+    events: List[Event],
+    icon: str,
+    max_items: int,
+) -> str:
+    """
+    Ընդհանուր helper՝ կառուցում է block մեկ կատեգորիայի համար.
+    Վերցնում է մինչև max_items event և վերադարձնում է Markdown-ready text.
+    """
+    if not events:
+        return ""
+
+    # Վերցնենք միայն առաջին N event-ները
+    limited = events[:max_items]
+
+    lines: List[str] = []
+    lines.append(title_line)
+    lines.append("")  # դատարկ տող header-ից հետո
+
+    for ev in limited:
+        lines.append(_format_event_line(ev, icon=icon))
+        lines.append("")  # դատարկ տող event-ների միջև
+
+    # Հեռացնում ենք վերջի դատարկ տողը, եթե կա
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return "\n".join(lines)
 
 
 # ==========================
@@ -48,9 +90,9 @@ def build_city_overview_message() -> str:
     Все формулировки — на русском, без конкретных адресов и цен.
     """
     try:
-        cinema_events = get_upcoming_cinema_events(limit=5)
-        rest_events = get_upcoming_restaurant_events(limit=5)
-        holiday_events = get_upcoming_holiday_events(limit=5)
+        cinema_events = get_upcoming_cinema_events(limit=2)
+        rest_events = get_upcoming_restaurant_events(limit=2)
+        holiday_events = get_upcoming_holiday_events(limit=2)
     except Exception as e:
         logger.error(f"Error building city overview: {e}", exc_info=True)
         return ""
@@ -59,26 +101,25 @@ def build_city_overview_message() -> str:
         return ""
 
     lines: List[str] = []
-    lines.append("🌆 Обзор дня в Мадриде:")
+    lines.append("🌆 *Обзор дня в Мадриде*")
+    lines.append("")
 
     if cinema_events:
         lines.append(
-            "🎬 Сегодня проходят показы фильмов и спектаклей "
-            "в нескольких кинотеатрах и театрах города."
+            "🎬 Сегодня в городе идут показы фильмов, спектаклей и другие развлечения."
         )
     if rest_events:
         lines.append(
-            "🍽 В барах и ресторанах — тематические вечера, живая музыка и специальные меню."
+            "🍽 В барах и ресторанах проходят тематические вечера, живые концерты и специальные меню."
         )
     if holiday_events:
         lines.append(
-            "🎉 По городу проходят праздничные мероприятия: ярмарки, концерты и программы для детей."
+            "🎉 В разных районах проходят праздничные события: ярмарки, концерты и программы для всей семьи."
         )
 
     lines.append("")
     lines.append(
-        "ℹ️ Подробности по отдельным событиям смотрите ниже "
-        "в блоках про кино, рестораны и праздники."
+        "ℹ️ Подробности смотрите в отдельных блоках: кино, театр, рестораны и мероприятия."
     )
 
     return "\n".join(lines)
@@ -87,7 +128,7 @@ def build_city_overview_message() -> str:
 # ==========================
 # 2) КИНО / РАЗВЛЕЧЕНИЯ
 # ==========================
-def build_cinema_message(max_items: int = 3) -> str:
+def build_cinema_message(max_items: int = 2) -> str:
     """
     🎬 Кино и развлечения
     Берём до max_items ближайших событий категории 'cinema'.
@@ -98,24 +139,20 @@ def build_cinema_message(max_items: int = 3) -> str:
         logger.error(f"Error building cinema message: {e}", exc_info=True)
         return ""
 
-    if not events:
-        return ""
-
-    lines: List[str] = []
-    lines.append("🎬 Кино и развлечения:")
-
-    for ev in events:
-        lines.append(_format_event_line(ev))
-
-    return "\n".join(lines)
+    return _build_block(
+        title_line="🎬 *Кино и развлечения:*",
+        events=events,
+        icon="🎬",
+        max_items=max_items,
+    )
 
 
 # ==========================
 # 3) СОБЫТИЯ В РЕСТОРАНАХ
 # ==========================
-def build_restaurant_message(max_items: int = 3) -> str:
+def build_restaurant_message(max_items: int = 2) -> str:
     """
-    🍽 События в ресторанах
+    🍽 События в ресторанах и барах
     Берём до max_items событий категории 'restaurant'.
     """
     try:
@@ -124,24 +161,20 @@ def build_restaurant_message(max_items: int = 3) -> str:
         logger.error(f"Error building restaurant message: {e}", exc_info=True)
         return ""
 
-    if not events:
-        return ""
-
-    lines: List[str] = []
-    lines.append("🍽 События в ресторанах:")
-
-    for ev in events:
-        lines.append(_format_event_line(ev))
-
-    return "\n".join(lines)
+    return _build_block(
+        title_line="🍷 *Бары и рестораны:*",
+        events=events,
+        icon="🍷",
+        max_items=max_items,
+    )
 
 
 # ==========================
 # 4) ПРАЗДНИКИ / ГОРОДСКИЕ МЕРОПРИЯТИЯ
 # ==========================
-def build_holidays_message(max_items: int = 3) -> str:
+def build_holidays_message(max_items: int = 2) -> str:
     """
-    🎉 Праздники в Мадриде
+    🎉 Праздники и городские мероприятия
     Универсальный блок для Рождества, НГ и городских праздников.
     """
     try:
@@ -150,22 +183,18 @@ def build_holidays_message(max_items: int = 3) -> str:
         logger.error(f"Error building holidays message: {e}", exc_info=True)
         return ""
 
-    if not events:
-        return ""
-
-    lines: List[str] = []
-    lines.append("🎉 Праздники в Мадриде:")
-
-    for ev in events:
-        lines.append(_format_event_line(ev))
-
-    return "\n".join(lines)
+    return _build_block(
+        title_line="🎉 *Городские мероприятия и праздники:*",
+        events=events,
+        icon="🎉",
+        max_items=max_items,
+    )
 
 
 # ==========================
 # 5) ТЕАТР И СЦЕНА МАДРИДА
 # ==========================
-def build_theatre_message(max_items: int = 3) -> str:
+def build_theatre_message(max_items: int = 2) -> str:
     """
     🎭 Театр и сцена Мадрида
     Берём до max_items ближайших событий категории 'theatre'.
@@ -176,13 +205,9 @@ def build_theatre_message(max_items: int = 3) -> str:
         logger.error(f"Error building theatre message: {e}", exc_info=True)
         return ""
 
-    if not events:
-        return ""
-
-    lines: List[str] = []
-    lines.append("🎭 Театр и сцена Мадрида:")
-
-    for ev in events:
-        lines.append(_format_event_line(ev))
-
-    return "\n".join(lines)
+    return _build_block(
+        title_line="🎭 *Театр и сцена Мадрида:*",
+        events=events,
+        icon="🎭",
+        max_items=max_items,
+    )
