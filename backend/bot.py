@@ -1,3 +1,5 @@
+# backend/bot.py
+
 # ==========================
 #  IMPORTS & INITIAL SETUP
 # ==========================
@@ -11,6 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from dotenv import load_dotenv
+
 from backend.ai.bot_ai import ask_city_bot
 
 from backend.languages import LANG, detect_lang
@@ -53,6 +56,7 @@ ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
 OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 bot_responder = QuestionAutoResponder(timeout=300)
 
+
 # ==========================
 #  KEYBOARDS
 # ==========================
@@ -72,12 +76,14 @@ news_keyboard = ReplyKeyboardMarkup(
             KeyboardButton(text="🎬 Кино / Cine"),
             KeyboardButton(text="🎭 Театр / Teatro"),
         ],
-        [KeyboardButton(text="🍷 Бары и рест. / Bares y rest.")],
+        [KeyboardButton(text="🍷 Бары и рестораны / Bares y restaurantes")],
         [KeyboardButton(text="🎉 Мероприятия / Eventos")],
-        [KeyboardButton(text="⬅️ В меню / menú")],
+        [KeyboardButton(text="⬅️ В меню / Al menú")],
     ],
     resize_keyboard=True,
 )
+
+
 # ==========================
 #  STATES
 # ==========================
@@ -85,8 +91,10 @@ news_keyboard = ReplyKeyboardMarkup(
 class BotMode(StatesGroup):
     chat = State()
 
+
 class FeedbackMode(StatesGroup):
     waiting_text = State()
+
 
 # ==========================
 #  HELPERS
@@ -99,6 +107,7 @@ def is_trade_question(text: str) -> bool:
     ]
     return any(word in text.lower() for word in trade_keywords)
 
+
 # ==========================
 #  /START & BASIC COMMANDS
 # ==========================
@@ -109,18 +118,20 @@ async def start_cmd(message: types.Message):
     text = (
         "🇪🇸 Добро пожаловать в Madrid Community Bot!\n\n"
         "Выберите режим:\n"
-        "🤖 Бот — задайте любой городской вопрос\n"
-        "📰 Новости — кино, театр, бары, мероприятия\n"
-        "👨‍💼 Админ — написать администратору"
+        "🤖 Старт‑бот / Iniciar bot — задать любой городской вопрос\n"
+        "📰 Новости / Noticias — кино, театр, бары, мероприятия\n"
+        "👨‍💼 Админ / Admin — написать администратору\n"
     )
     await message.answer(text, reply_markup=main_menu_keyboard)
     logger.info(f"User {message.from_user.id} started bot")
+
 
 @dp.message(Command("help"))
 async def help_cmd(message: types.Message):
     lang = detect_lang(message.from_user.language_code)
     await message.answer(LANG[lang]["help"])
     logger.info(f"User {message.from_user.id} requested help")
+
 
 # ==========================
 #  🤖 БОТ — AI / ՀԻՄՆԱԿԱՆ ՕԳՆԱԿԱՆ
@@ -130,20 +141,25 @@ async def help_cmd(message: types.Message):
 async def bot_mode_on(message: types.Message, state: FSMContext):
     await state.set_state(BotMode.chat)
     await message.answer(
-        "Вы в режиме 🤖 Бот.\n"
-        "Задайте вопрос, например: «Где можно покушать пиццу?»\n\n"
-        "Чтобы вернуться в меню, нажмите любой из пунктов: 📰 Новости или 👨‍💼 Админ.",
+        "Вы в режиме 🤖 Старт‑бот / Iniciar bot.\n"
+        "Задайте вопрос, например: «Где можно поесть пиццу в Мадриде?»\n\n"
+        "Чтобы вернуться в меню, нажмите любой из пунктов: "
+        "📰 Новости / Noticias или 👨‍💼 Админ / Admin.",
         reply_markup=main_menu_keyboard,
     )
     logger.info("User %s switched to Bot mode", message.from_user.id)
+
 
 @dp.message(BotMode.chat)
 async def bot_mode_chat(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     question_id = str(message.message_id)
-    text = message.text
+    text = (message.text or "").strip()
 
-    if text in ("📰 Новости", "👨‍💼 Админ"):
+    if text in (
+        "📰 Новости / Noticias",
+        "👨‍💼 Админ / Admin",
+    ):
         await state.clear()
         await message.answer("Главное меню:", reply_markup=main_menu_keyboard)
         return
@@ -166,13 +182,16 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
             await message.answer(answer_text)
         else:
             await message.answer(
-                "Пока не нашёл подходящих вариантов. Попробуйте сформулировать вопрос иначе."
+                "Пока не нашёл подходящих вариантов. "
+                "Попробуйте сформулировать вопрос иначе."
             )
     except Exception as e:
         logger.error("AI error in BotMode.chat: %s", e, exc_info=True)
         await message.answer(
-            "Произошла ошибка при получении ответа от бота. Попробуйте ещё раз чуть позже."
+            "Произошла ошибка при получении ответа от бота. "
+            "Попробуйте ещё раз чуть позже."
         )
+
 
 # ==========================
 #  📰 НОВОСТИ — EVENTS / КИНО / ТЕАТР / БАРЫ / МЕРОПРИЯТИЯ
@@ -181,120 +200,126 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
 @dp.message(F.text == "📰 Новости / Noticias")
 async def news_menu(message: types.Message):
     await message.answer(
-        "Выберите раздел новостей:", reply_markup=news_keyboard
+        "Выберите раздел новостей:",
+        reply_markup=news_keyboard,
     )
 
-@dp.message(F.text == "⬅️ В меню / menú")
+
+@dp.message(F.text == "⬅️ В меню / Al menú")
 async def back_to_menu(message: types.Message):
     await message.answer(
-        "Главное меню:", reply_markup=main_menu_keyboard
+        "Главное меню:",
+        reply_markup=main_menu_keyboard,
     )
+
 
 @dp.message(Command("news"))
 async def news_cmd(message: types.Message):
+    """
+    Краткий обзор + кино (по 2 события максимум).
+    """
     try:
         overview = build_city_overview_message()
         cinema = build_cinema_message(max_items=2)
-        news_text = f"{overview}\n\n{cinema}"
+
+        parts = []
+        if overview:
+            parts.append(overview)
+        if cinema:
+            parts.append(cinema)
+
+        if not parts:
+            await message.answer("📰 На сегодня нет событий для отображения.")
+            return
+
+        text = "\n\n".join(parts)
         await message.answer(
-            news_text, parse_mode="Markdown", disable_web_page_preview=True
+            text,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"News error: {e}")
-        await message.answer("📰 Новости временно недоступны")
+        logger.error(f"News error: {e}", exc_info=True)
+        await message.answer("📰 Новости временно недоступны.")
     logger.info(f"User {message.from_user.id} requested news")
+
 
 @dp.message(F.text == "🎬 Кино / Cine")
 async def news_cinema(message: types.Message):
     try:
-        cinema = build_cinema_message(max_items=3)
+        cinema = build_cinema_message(max_items=2)
+        if not cinema:
+            await message.answer("🎬 На сегодня не найдено событий категории «Кино».")
+            return
+
         await message.answer(
-            cinema, parse_mode="Markdown", disable_web_page_preview=True
+            cinema,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"Cinema news error: {e}")
+        logger.error(f"Cinema news error: {e}", exc_info=True)
         await message.answer("🎬 Раздел «Кино» временно недоступен.")
+
 
 @dp.message(F.text == "🎭 Театр / Teatro")
 async def news_theatre(message: types.Message):
     try:
-        theatre = build_theatre_message(max_items=3)
-        text = "🎭 *Театр и сцена Мадрида:*\n\n" + theatre
+        theatre = build_theatre_message(max_items=2)
+        if not theatre:
+            await message.answer("🎭 На сегодня не найдено театральных событий.")
+            return
+
         await message.answer(
-            text, parse_mode="Markdown", disable_web_page_preview=True
+            theatre,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"Theatre news error: {e}")
+        logger.error(f"Theatre news error: {e}", exc_info=True)
         await message.answer("🎭 Раздел «Театр» временно недоступен.")
 
-@dp.message(F.text == "🍷 Бары и рест. / Bares y rest.")
+
+@dp.message(F.text == "🍷 Бары и рестораны / Bares y restaurantes")
 async def news_bars(message: types.Message):
     try:
-        restaurants = build_restaurant_message(max_items=3)
+        restaurants = build_restaurant_message(max_items=2)
+        if not restaurants:
+            await message.answer(
+                "🍷 На сегодня не найдено событий в барах и ресторанах."
+            )
+            return
+
         await message.answer(
-            restaurants, parse_mode="Markdown", disable_web_page_preview=True
+            restaurants,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"Restaurant news error: {e}")
-        await message.answer("🍷 Раздел «Бары и рестораны» временно недоступен.")
+        logger.error(f"Restaurant news error: {e}", exc_info=True)
+        await message.answer(
+            "🍷 Раздел «Бары и рестораны» временно недоступен."
+        )
+
 
 @dp.message(F.text == "🎉 Мероприятия / Eventos")
 async def news_events(message: types.Message):
     try:
-        holidays = build_holidays_message(max_items=3)
-        text = "🎉 *Городские мероприятия и праздники:*\n\n" + holidays
+        holidays = build_holidays_message(max_items=2)
+        if not holidays:
+            await message.answer(
+                "🎉 На сегодня не найдено городских мероприятий и праздников."
+            )
+            return
+
         await message.answer(
-            text, parse_mode="Markdown", disable_web_page_preview=True
+            holidays,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
         )
     except Exception as e:
-        logger.error(f"Events news error: {e}")
+        logger.error(f"Events news error: {e}", exc_info=True)
         await message.answer("🎉 Раздел «Мероприятия» временно недоступен.")
-
-# ==========================
-#  🍽 COMIDA / FOOD SEARCH
-# ==========================
-
-@dp.message(F.text.regexp(
-    r"(бургер|пицца|суши|хачапури|паста|рамен|шаурма|плов|салат|стейк|гриль|мясо|рыба|бар|кофе|чай|вино|хинкали|шашлык|фалафель|тако|паэлья|енсалада|тамале|маки|роллы|гёдза|бонито|окономияки|блины|креветки|мидии|коктейль|завтрак|ужин|обед|фрукт|овощ|еда|ресторан|кафе|pizza|pasta|sushi|burger|ramen|steak|salad|bar|wine|coffee|tapas|paella|ensalada|shawarma|falafel|bistro|teriyaki|noodle|grill|bruschetta|curry|fish|meat|cheese|breakfast|dinner|lunch|fruit|vegetable|food|restaurant|cafe)"
-))
-async def food_search(message: types.Message):
-    from backend.ai.food_reply import find_food_place
-
-    query = message.text
-    result = find_food_place(query)
-
-    if not result or "name" not in result or not result["name"]:
-        alt_reply = (
-            "😥 По вашему запросу ничего не найдено.\n"
-            "Попробуйте другой тип еды или поищите что-нибудь вкусненькое рядом!\n"
-            "Например: 'пицца', 'суши', 'бургер', 'хачапури', 'паста'."
-        )
-        await message.answer(alt_reply)
-        return
-
-    name = result.get("name", "Неизвестно")
-    address = result.get("address", "Без адреса")
-    rating = result.get("rating", "Нет оценки")
-    place_url = result.get("url", None)
-
-    if not place_url:
-        maps_url = (
-            f"https://www.google.com/maps/search/?api=1&query={address.replace(' ', '+')}"
-        )
-    else:
-        maps_url = place_url
-
-    reply_text = (
-        f"🍽 **Ресторан: {name}**\n"
-        f"📍 **Адрес:** {address}\n"
-        f"⭐ **Оценка:** {rating}\n"
-        f"🗺 **Смотреть на карте:** {maps_url}"
-    )
-    await message.answer(reply_text, parse_mode="Markdown", disable_web_page_preview=True)
-
-    if result.get("alternatives"):
-        tips = "\n".join([f"- {alt}" for alt in result["alternatives"]])
-        await message.answer(f"💡 **Вот еще несколько вариантов рядом:**\n{tips}")
 
 # ==========================
 #  👨‍💼 АДМИН — FEEDBACK
