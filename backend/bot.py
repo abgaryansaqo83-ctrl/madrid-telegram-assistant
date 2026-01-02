@@ -126,7 +126,7 @@ async def help_cmd(message: types.Message):
 #  🤖 БОТ — AI / ՀԻՄՆԱԿԱՆ ՕԳՆԱԿԱՆ
 # ==========================
 
-@dp.message(F.text == "🤖 Бот")
+@dp.message(F.text == "🤖 Старт‑бот / Iniciar bot")
 async def bot_mode_on(message: types.Message, state: FSMContext):
     await state.set_state(BotMode.chat)
     await message.answer(
@@ -178,13 +178,13 @@ async def bot_mode_chat(message: types.Message, state: FSMContext):
 #  📰 НОВОСТИ — EVENTS / КИНО / ТЕАТР / БАРЫ / МЕРОПРИЯТИЯ
 # ==========================
 
-@dp.message(F.text == "📰 Новости")
+@dp.message(F.text == "📰 Новости / Noticias")
 async def news_menu(message: types.Message):
     await message.answer(
         "Выберите раздел новостей:", reply_markup=news_keyboard
     )
 
-@dp.message(F.text == "⬅️ В меню")
+@dp.message(F.text == "⬅️ В меню / menú")
 async def back_to_menu(message: types.Message):
     await message.answer(
         "Главное меню:", reply_markup=main_menu_keyboard
@@ -204,7 +204,7 @@ async def news_cmd(message: types.Message):
         await message.answer("📰 Новости временно недоступны")
     logger.info(f"User {message.from_user.id} requested news")
 
-@dp.message(F.text == "🎬 Кино")
+@dp.message(F.text == "🎬 Кино / Cine")
 async def news_cinema(message: types.Message):
     try:
         cinema = build_cinema_message(max_items=3)
@@ -215,7 +215,7 @@ async def news_cinema(message: types.Message):
         logger.error(f"Cinema news error: {e}")
         await message.answer("🎬 Раздел «Кино» временно недоступен.")
 
-@dp.message(F.text == "🎭 Театр")
+@dp.message(F.text == "🎭 Театр / Teatro")
 async def news_theatre(message: types.Message):
     try:
         theatre = build_theatre_message(max_items=3)
@@ -227,7 +227,7 @@ async def news_theatre(message: types.Message):
         logger.error(f"Theatre news error: {e}")
         await message.answer("🎭 Раздел «Театр» временно недоступен.")
 
-@dp.message(F.text == "🍷 Бары и рестораны")
+@dp.message(F.text == "🍷 Бары и рест. / Bares y rest.")
 async def news_bars(message: types.Message):
     try:
         restaurants = build_restaurant_message(max_items=3)
@@ -238,7 +238,7 @@ async def news_bars(message: types.Message):
         logger.error(f"Restaurant news error: {e}")
         await message.answer("🍷 Раздел «Бары и рестораны» временно недоступен.")
 
-@dp.message(F.text == "🎉 Мероприятия")
+@dp.message(F.text == "🎉 Мероприятия / Eventos")
 async def news_events(message: types.Message):
     try:
         holidays = build_holidays_message(max_items=3)
