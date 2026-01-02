@@ -325,7 +325,7 @@ async def news_events(message: types.Message):
 #  👨‍💼 АДМИН — FEEDBACK
 # ==========================
 
-@dp.message(F.text == "👨‍💼 Админ")
+@dp.message(F.text == "👨‍💼 Админ / Admin")
 async def feedback_start(message: types.Message, state: FSMContext):
     await state.set_state(FeedbackMode.waiting_text)
     await message.answer(
