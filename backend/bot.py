@@ -256,6 +256,18 @@ async def news_cinema(message: types.Message):
             title = (e.get("title") or "").strip()
             place = (e.get("place") or "").strip()
             address = (e.get("address") or "").strip()
+            # Փորձենք նորմալ բաժանել՝ comma-ներով
+            address_lines: list[str] = []
+            if address:
+                parts = [p.strip() for p in address.split(",") if p.strip()]
+                if parts:
+                    # Առաջին հատվածը՝ փողոցի անունը
+                    first_line = parts[0]
+                    address_lines.append(f"📍 {first_line}")
+                    # Մնացածը՝ երկրորդ տողի մեջ (քաղաք, postal код, район...)
+                    if len(parts) > 1:
+                        rest = ", ".join(parts[1:])
+                        address_lines.append(f"📍 {rest}")
             url = (e.get("url") or "").strip()
             image_url = (e.get("image_url") or "").strip()
             price = (e.get("price") or "").strip()   # հիմա դատարկ է, բայց թող տեղը լինի
@@ -265,8 +277,8 @@ async def news_cinema(message: types.Message):
                 lines.append(f"*{title}*")
             if place:
                 lines.append(f"📍 {place}")
-            if address:
-                lines.append(f"📍 {address}")
+            for addr_line in address_lines:
+                lines.append(addr_line)
             # եթե երբևէ կունենանք գին/ամսաթիվ, սրանք լրացնես
             if price:
                 lines.append(f"💶 {price}")
