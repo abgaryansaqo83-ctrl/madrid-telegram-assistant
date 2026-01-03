@@ -52,9 +52,8 @@ async def send_morning_news(bot: Bot):
             overview = ""
 
         if overview:
-            header = "📬 *Madrid Morning Digest*\\n\\n"
-            text = header + overview
-            parts.append(text)
+            overview = "📬 *Обзор дня в Мадриде*"
+            parts.append(overview)
 
         # 2. Кино и развлечения
         try:
