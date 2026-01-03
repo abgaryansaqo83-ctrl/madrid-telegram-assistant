@@ -31,33 +31,16 @@ scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 #  MORNING DIGEST JOB
 # ==========================
 async def send_morning_news(bot: Bot):
-    """
-    Առավոտյան news digest Մադրիդի համար.
-    Կազմում է մի քանի մեսիջով.
-      1) Общий обзор дня
-      2) Кино и развлечения
-      3) События в ресторанах
-      4) Праздники и городские мероприятия
-      5) Утренний трафик (если есть данные)
-    Ամբողջը ռուսերեն, հետո կարելի է ավելացնել իսպաներեն բլոկներ։
-    """
     try:
         parts = []
 
-        # 1. Обзор города
-        try:
-            overview = build_city_overview_message()
-        except Exception as e:
-            logger.error("Error building city overview: %s", e, exc_info=True)
-            overview = ""
+        # 1. Կարճ header՝ առանց երկար описания
+        header = "📬 *Обзор дня в Мадриде*"
+        parts.append(header)
 
-        if overview:
-            overview = "📬 *Обзор дня в Мадриде*"
-            parts.append(overview)
-
-        # 2. Кино и развлечения
+        # 2. Кино и развлечения (մինչև 2 event)
         try:
-            cinema = build_cinema_message(max_items=3)
+            cinema = build_cinema_message(max_items=2)
         except Exception as e:
             logger.error("Error building cinema block: %s", e, exc_info=True)
             cinema = ""
@@ -65,9 +48,9 @@ async def send_morning_news(bot: Bot):
         if cinema:
             parts.append(cinema)
 
-        # 3. Рестораны и бары
+        # 3. Рестораны и бары (մինչև 2 event)
         try:
-            restaurants = build_restaurant_message(max_items=3)
+            restaurants = build_restaurant_message(max_items=2)
         except Exception as e:
             logger.error("Error building restaurant block: %s", e, exc_info=True)
             restaurants = ""
@@ -75,9 +58,9 @@ async def send_morning_news(bot: Bot):
         if restaurants:
             parts.append(restaurants)
 
-        # 4. Праздники и городские мероприятия
+        # 4. Праздники и городские мероприятия (մինչև 2 event)
         try:
-            holidays = build_holidays_message(max_items=3)
+            holidays = build_holidays_message(max_items=2)
         except Exception as e:
             logger.error("Error building holidays block: %s", e, exc_info=True)
             holidays = ""
@@ -99,7 +82,6 @@ async def send_morning_news(bot: Bot):
             logger.info("No morning messages to send (all blocks empty)")
             return
 
-        # Ուղարկում ենք հերթով, Markdown parse_mode-ով
         for text in parts:
             await bot.send_message(
                 MADRID_GROUP_ID,
@@ -112,7 +94,6 @@ async def send_morning_news(bot: Bot):
 
     except Exception as e:
         logger.error("❌ Morning news error: %s", e, exc_info=True)
-
 
 # ==========================
 #  SCHEDULER CONTROL
