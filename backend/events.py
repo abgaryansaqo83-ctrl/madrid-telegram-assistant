@@ -185,28 +185,28 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
         )
     return events
 
-def get_upcoming_cinema_events(limit: int = 3) -> List[Event]:
+def get_upcoming_cinema_events(limit: int = 2) -> List[Event]:
     """
     Առաջիկա 🎬 cinema event-ներ Մադրիդում.
     """
     return _fetch_upcoming_events("cinema", limit=limit)
 
 
-def get_upcoming_theatre_events(limit: int = 3) -> List[Event]:
+def get_upcoming_theatre_events(limit: int = 2) -> List[Event]:
     """
     Առաջիկա 🎭 թատրոնի event-ներ Մադրիդում.
     """
     return _fetch_upcoming_events("theatre", limit=limit)
 
 
-def get_upcoming_restaurant_events(limit: int = 3) -> List[Event]:
+def get_upcoming_restaurant_events(limit: int = 2) -> List[Event]:
     """
     Առաջիկա 🍽 ռեստորանային / բարային event-ներ.
     """
     return _fetch_upcoming_events("restaurant", limit=limit)
 
 
-def get_upcoming_holiday_events(limit: int = 3) -> List[Event]:
+def get_upcoming_holiday_events(limit: int = 2) -> List[Event]:
     """
     Առաջիկա 🎉 քաղաքային տոնական event-ներ (Christmas, ՆԳ, փառատոններ...).
     """
