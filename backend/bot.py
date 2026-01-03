@@ -27,7 +27,7 @@ from backend.matching import (
     is_housing_offer,
     is_housing_request,
 )
-
+from backend.events import get_upcoming_cinema_events
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 from backend.news import (
@@ -247,20 +247,51 @@ async def news_cmd(message: types.Message):
 @dp.message(F.text == "🎬 Кино / Cine")
 async def news_cinema(message: types.Message):
     try:
-        cinema = build_cinema_message(max_items=2)
-        if not cinema:
+        events = get_upcoming_cinema_events(limit=2)
+        if not events:
             await message.answer("🎬 На сегодня не найдено событий категории «Кино».")
             return
 
-        await message.answer(
-            cinema,
-            parse_mode="Markdown",
-            disable_web_page_preview=True,
-        )
+        for e in events:
+            title = (e.get("title") or "").strip()
+            place = (e.get("place") or "").strip()
+            address = (e.get("address") or "").strip()
+            url = (e.get("url") or "").strip()
+            image_url = (e.get("image_url") or "").strip()
+            price = (e.get("price") or "").strip()   # հիմա դատարկ է, բայց թող տեղը լինի
+
+            lines = []
+            if title:
+                lines.append(f"*{title}*")
+            if place:
+                lines.append(f"📍 {place}")
+            if address:
+                lines.append(f"📍 {address}")
+            # եթե երբևէ կունենանք գին/ամսաթիվ, սրանք լրացնես
+            if price:
+                lines.append(f"💶 {price}")
+            if url:
+                lines.append(f"🔗 [Подробнее]({url})")
+
+            caption = "\n".join(lines) if lines else "🎬 Кино"
+
+            if image_url:
+                await message.answer_photo(
+                    photo=image_url,
+                    caption=caption,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True,
+                )
+            else:
+                await message.answer(
+                    caption,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True,
+                )
+
     except Exception as e:
         logger.error(f"Cinema news error: {e}", exc_info=True)
         await message.answer("🎬 Раздел «Кино» временно недоступен.")
-
 
 @dp.message(F.text == "🎭 Театр / Teatro")
 async def news_theatre(message: types.Message):
