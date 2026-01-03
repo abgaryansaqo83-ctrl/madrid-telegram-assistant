@@ -112,48 +112,51 @@ def upsert_event(
 def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
     """
     Վերցնում է random events-ներ տրված category-ի համար.
-    Սկզբում փորձում է հենց այսօրվա (date = today), եթե չկան՝
-    վերցնում է մոտակա 3 օրերի միջակայքում գտնվող event-ները:
+    Փոփոխված logic:
+      - Նախ փորձում ենք գտնել event-ներ այսօրից սկսած առաջիկա 30 օրերի համար.
+      - Եթե չկան, fallback ենք անում վերջին 30 օրերի event-ների վրա.
     """
     today = date.today()
-    next_3_days = today + timedelta(days=3)
+    plus_30 = today + timedelta(days=30)
+    minus_30 = today - timedelta(days=30)
 
     try:
         with _get_conn() as conn, conn.cursor() as cur:
-            # 1) Փորձում ենք գտնել հենց այսօրվա events-ները
-            sql_today = """
+            # 1) Առաջիկա 30 օրերի event-ներ
+            sql_upcoming = """
             SELECT title, place, start_time, source_url
             FROM madrid_events
             WHERE category = %(category)s
-              AND date = %(today)s
+              AND date BETWEEN %(today)s AND %(plus_30)s
             ORDER BY RANDOM()
             LIMIT %(limit)s;
             """
-            params_today = {
+            params_upcoming = {
                 "category": category,
                 "today": today,
+                "plus_30": plus_30,
                 "limit": limit,
             }
-            cur.execute(sql_today, params_today)
+            cur.execute(sql_upcoming, params_upcoming)
             rows = cur.fetchall()
 
-            # 2) Եթե այսօրվա events-ներ չկան, վերցնենք հաջորդ օրերից
+            # 2) Եթե չկան, fallback վերջին 30 օրերին
             if not rows:
-                sql_upcoming = """
+                sql_past = """
                 SELECT title, place, start_time, source_url
                 FROM madrid_events
                 WHERE category = %(category)s
-                  AND date BETWEEN %(today)s AND %(next_3_days)s
+                  AND date BETWEEN %(minus_30)s AND %(today)s
                 ORDER BY RANDOM()
                 LIMIT %(limit)s;
                 """
-                params_upcoming = {
+                params_past = {
                     "category": category,
+                    "minus_30": minus_30,
                     "today": today,
-                    "next_3_days": next_3_days,
                     "limit": limit,
                 }
-                cur.execute(sql_upcoming, params_upcoming)
+                cur.execute(sql_past, params_past)
                 rows = cur.fetchall()
 
     except Exception as e:
@@ -181,7 +184,6 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
             }
         )
     return events
-
 
 def get_upcoming_cinema_events(limit: int = 3) -> List[Event]:
     """
