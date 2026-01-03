@@ -13,6 +13,7 @@ from backend.news import (
     build_restaurant_message,
     build_holidays_message,
 )
+from backend.events import get_upcoming_cinema_events
 from backend.ai.traffic import madrid_morning_traffic
 
 logger = logging.getLogger(__name__)
@@ -32,21 +33,64 @@ scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 # ==========================
 async def send_morning_news(bot: Bot):
     try:
-        parts = []
-
-        # 1. Կարճ header՝ առանց երկար описания
+        # 1) Header որպես text
         header = "📬 *Обзор дня в Мадриде*"
-        parts.append(header)
+        await bot.send_message(
+            chat_id=GROUP_CHAT_ID,
+            text=header,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
+        )
 
-        # 2. Кино и развлечения (մինչև 2 event)
-        try:
-            cinema = build_cinema_message(max_items=2)
-        except Exception as e:
-            logger.error("Error building cinema block: %s", e, exc_info=True)
-            cinema = ""
+        # 2) Կինո՝ նույն քարտերով, ինչ «🎬 Кино / Cine» մենյուում
+        events = get_upcoming_cinema_events(limit=2)
 
-        if cinema:
-            parts.append(cinema)
+        for e in events:
+            title = (e.get("title") or "").strip()
+            place = (e.get("place") or "").strip()
+            address = (e.get("address") or "").strip()
+            url = (e.get("url") or "").strip()
+            image_url = (e.get("image_url") or "").strip()
+
+            # հասցեն բաժանում ենք, որ չկտրվի
+            address_lines = []
+            if address:
+                parts = [p.strip() for p in address.split(",") if p.strip()]
+                if parts:
+                    address_lines.append(f"📍 {parts[0]}")
+                    if len(parts) > 1:
+                        rest = ", ".join(parts[1:])
+                        address_lines.append(f"📍 {rest}")
+
+            lines = []
+            if title:
+                lines.append(f"*{title}*")
+            if place:
+                lines.append(f"📍 {place}")
+            lines.extend(address_lines)
+            if url:
+                lines.append(f"🔗 [Подробнее]({url})")
+
+            caption = "\n".join(lines) if lines else "🎬 Кино"
+
+            if image_url:
+                await bot.send_photo(
+                    chat_id=GROUP_CHAT_ID,
+                    photo=image_url,
+                    caption=caption,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True,
+                )
+            else:
+                await bot.send_message(
+                    chat_id=GROUP_CHAT_ID,
+                    text=caption,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True,
+                )
+
+    except Exception as e:
+        logger.error(f"Morning news error: {e}", exc_info=True)
 
         # 3. Рестораны и бары (մինչև 2 event)
         try:
