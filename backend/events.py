@@ -40,6 +40,9 @@ def init_events_schema() -> None:
         date        DATE NOT NULL,
         category    VARCHAR(32) NOT NULL,   -- cinema, theatre, restaurant, holiday
         source_url  TEXT,
+        address     TEXT,
+        price       TEXT,
+        image_url   TEXT,
         created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -124,7 +127,7 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
         with _get_conn() as conn, conn.cursor() as cur:
             # 1) Առաջիկա 30 օրերի event-ներ
             sql_upcoming = """
-            SELECT title, place, start_time, source_url
+            SELECT title, place, start_time, source_url, address, image_url
             FROM madrid_events
             WHERE category = %(category)s
               AND date BETWEEN %(today)s AND %(plus_30)s
@@ -143,7 +146,7 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
             # 2) Եթե չկան, fallback վերջին 30 օրերին
             if not rows:
                 sql_past = """
-                SELECT title, place, start_time, source_url
+                SELECT title, place, start_time, source_url, address, image_url
                 FROM madrid_events
                 WHERE category = %(category)s
                   AND date BETWEEN %(minus_30)s AND %(today)s
@@ -167,7 +170,7 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
         return []
 
     events: List[Event] = []
-    for title, place, start_time, source_url in rows:
+    for title, place, start_time, source_url, address, image_url in rows:
         if isinstance(start_time, datetime):
             time_str = start_time.strftime("%d.%m %H:%M")
         elif start_time:
@@ -181,9 +184,12 @@ def _fetch_upcoming_events(category: str, limit: int = 3) -> List[Event]:
                 "place": place or "",
                 "time": time_str,
                 "url": source_url or "",
+                "address": address or "",
+                "image_url": image_url or "",
             }
         )
     return events
+
 
 def get_upcoming_cinema_events(limit: int = 2) -> List[Event]:
     """
