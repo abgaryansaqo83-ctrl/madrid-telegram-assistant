@@ -21,23 +21,13 @@ Event = Dict[str, str]
 # ==========================
 
 # Կինո
-YELMO_FILM_URLS = [
-    "https://yelmocines.es/sinopsis/vanya-encore-national-theatre-25-26",
-    "https://yelmocines.es/sinopsis/the-world-of-hans-zimmer-a-new-dimension",
-    "https://yelmocines.es/sinopsis/el-rey-de-reyes",
-    "https://yelmocines.es/sinopsis/roofman-un-ladron-en-el-tejado",
-]
 
 ECARTELERA_FILM_URLS = [
     "https://www.ecartelera.com/peliculas/coartadas/",
     "https://www.ecartelera.com/peliculas/playa-de-lobos/",
 ]
 
-TAQUILLA_FILM_URLS = [
-    "https://www.taquilla.com/entradas/ahora-me-ves-3",
-    "https://www.taquilla.com/entradas/la-voz-de-hind",
-    "https://www.taquilla.com/madrid/yelmo-cines-ideal-madrid",
-]
+TAQUILLA_CARTELERA_MADRID_URL = "https://www.taquilla.com/cartelera/madrid"
 
 # Թատրոն
 THEATRE_URLS = [
@@ -93,27 +83,6 @@ def _today_str() -> str:
 # ==========================
 #  SCRAPER PLACEHOLDERS
 # ==========================
-# Հիմա scrapers-ը շատ պարզ են՝ միայն title + source/url.
-# Հետագայում կարող ենք ավելացնել իրական parsing (date/time/place/price):
-
-def _scrape_yelmo_film(url: str) -> Optional[Event]:
-    soup = _http_get(url)
-    if not soup:
-        return None
-
-    # Title-ը սովորաբար h1 tag-ում է
-    title_tag = soup.find("h1")
-    title = title_tag.get_text(strip=True) if title_tag else "Sin título"
-
-    return {
-        "title": title,
-        "place": "Yelmo Cines (Madrid)",
-        "time": "",               # հետո կլրացնենք իրական սեսիաներով
-        "date": _today_str(),     # հիմա՝ որպես placeholder, այսօր
-        "category": "cinema",
-        "source_url": url,
-    }
-
 
 def _scrape_ecartelera_film(url: str) -> Optional[Event]:
     soup = _http_get(url)
@@ -209,35 +178,99 @@ def _scrape_restaurant_event(url: str) -> Optional[Event]:
 #  PUBLIC FETCH FUNCTIONS
 # ==========================
 
-def fetch_madrid_cinema_events(limit: int = 20) -> List[Event]:
+def fetch_madrid_cinema_events(limit: int = 30) -> List[Event]:
     """
-    Քաշում է մի քանի կինո event տարբեր աղբյուրներից և վերադարձնում list[Event].
-    Հիմա՝  շատ պարզ՝ per-URL scraping h1 title-ով:
+    Քաշում է Taquilla cartelera Madrid էջից մինչև `limit` ֆիլմեր.
+    Ամեն ֆիլմի համար ընտրում է random մեկ կինոթատրոն Մադրիդում
+    և վերադարձնում Event dict list, պատրաստ DB-ի համար:
     """
+    soup = _http_get(TAQUILLA_CARTELERA_MADRID_URL)
+    if not soup:
+        return []
+
+    # 1) Ֆիլմերի map՝ slug -> (title, image_url)
+    movies: Dict[str, Dict[str, str]] = {}
+    for img in soup.select("img.movie-list-thumb"):
+        slug = (img.get("id") or "").strip()
+        if not slug:
+            continue
+        title = (img.get("data-name") or "").strip()
+        image_url = (img.get("src") or "").strip()
+        if not title:
+            continue
+        movies[slug] = {
+            "title": title,
+            "image_url": image_url,
+        }
+
+    # 2) Կինոթատրոնների list + որ ֆիլմերն են գնում այնտեղ
+    #    div.film-results__result – չդիտարկենք որոնք "SIN ENTRADAS" ունեն, եթե չես ուզում
     events: List[Event] = []
+    seen_titles: set[str] = set()
 
-    for url in YELMO_FILM_URLS:
-        if len(events) >= limit:
-            break
-        ev = _scrape_yelmo_film(url)
-        if ev:
+    for div in soup.select("aside#movie_theater_list div.film-results__result"):
+        # cinema basic info
+        name_tag = div.select_one(".film-results__name a")
+        if not name_tag:
+            continue
+        cinema_name = name_tag.get_text(strip=True)
+
+        address_tag = div.select_one("p.cine-results__info")
+        cinema_address = address_tag.get_text(strip=True) if address_tag else ""
+
+        content_div = div.select_one(".film-results__content.data-link")
+        source_url = content_div.get("data-link", "").strip() if content_div else ""
+
+        # class-երից հավաքում ենք ֆիլմերի slug-երը
+        class_list = div.get("class") or []
+        slugs_for_cinema: List[str] = []
+        for cls in class_list:
+            if cls in ("film-results__result", "disabled"):
+                continue
+            if cls.startswith("avatar-"):
+                continue
+            # մնացած class-երը ֆիլմերի slug-երն են
+            if cls in movies:
+                slugs_for_cinema.append(cls)
+
+        if not slugs_for_cinema:
+            continue
+
+        # Յուրաքանչյուր ֆիլմի համար կարող ենք սարքել event,
+        # բայց limit պահելու համար կկտրենք ավելի ուշ
+        for slug in slugs_for_cinema:
+            movie = movies.get(slug)
+            if not movie:
+                continue
+
+            title = movie["title"]
+
+            # Եթե ուզում ես մեկ անգամ միայն յուրաքանչյուր title-ը,
+            # ապա կարող ենք skip անել արդեն տեսած վերնագրերը
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+
+            ev: Event = {
+                "title": title,
+                "place": cinema_name,
+                "time": "",                     # ժամեր չունենք
+                "date": _today_str(),           # կամ ավելի ուշ cities_dates-ից real օր դնես
+                "category": "cinema",
+                "source_url": source_url,
+                "address": cinema_address,
+                "price": "",                    # գին էլ հիմա չունենք
+                "image_url": movie["image_url"],
+            }
             events.append(ev)
 
-    for url in ECARTELERA_FILM_URLS:
+            if len(events) >= limit:
+                break
+
         if len(events) >= limit:
             break
-        ev = _scrape_ecartelera_film(url)
-        if ev:
-            events.append(ev)
 
-    for url in TAQUILLA_FILM_URLS:
-        if len(events) >= limit:
-            break
-        ev = _scrape_taquilla_film(url)
-        if ev:
-            events.append(ev)
-
-    return events[:limit]
+    return events
 
 
 def fetch_madrid_theatre_events(limit: int = 20) -> List[Event]:
@@ -331,7 +364,7 @@ def refresh_madrid_events_for_today() -> None:
         logger.error(f"Error clearing today's events: {e}", exc_info=True)
 
     # Cinema
-    for ev in fetch_madrid_cinema_events(limit=10):
+    for ev in fetch_madrid_cinema_events(limit=30):
         _save_event_to_db(ev)
 
     # Theatre
