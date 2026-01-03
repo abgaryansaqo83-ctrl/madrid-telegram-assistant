@@ -278,23 +278,20 @@ def fetch_madrid_restaurant_events(limit: int = 20) -> List[Event]:
 # ==========================
 
 def _save_event_to_db(ev: Event) -> None:
-    """
-    Գրանցում է event-ը madrid_events աղյուսակում՝
-    ՈՒՂՂԱԿԻ SQL INSERT-ով (առանց upsert_event()).
-    """
     try:
         from backend.events import _get_conn
-        
+
         conn = _get_conn()
         cur = conn.cursor()
-        
-        # Պարզ INSERT
+
         cur.execute(
             """
             INSERT INTO madrid_events 
-                (title, place, start_time, date, category, source_url)
+                (title, place, start_time, date, category,
+                 source_url, address, price, image_url)
             VALUES 
-                (%s, %s, %s, %s, %s, %s)
+                (%s, %s, %s, %s, %s,
+                 %s, %s, %s, %s)
             ON CONFLICT DO NOTHING;
             """,
             (
@@ -304,6 +301,9 @@ def _save_event_to_db(ev: Event) -> None:
                 ev.get("date", _today_str()),
                 ev.get("category", ""),
                 ev.get("source_url", ""),
+                ev.get("address", ""),
+                ev.get("price", ""),
+                ev.get("image_url", ""),
             ),
         )
         conn.commit()
