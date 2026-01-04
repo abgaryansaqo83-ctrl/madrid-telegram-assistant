@@ -36,7 +36,7 @@ async def send_morning_news(bot: Bot):
         # 1) Header որպես text
         header = "📬 *Обзор дня в Мадриде*"
         await bot.send_message(
-            chat_id=GROUP_CHAT_ID,
+            chat_id=CHAT_ID,
             text=header,
             parse_mode="Markdown",
             disable_web_page_preview=True,
@@ -75,7 +75,7 @@ async def send_morning_news(bot: Bot):
 
             if image_url:
                 await bot.send_photo(
-                    chat_id=GROUP_CHAT_ID,
+                    chat_id=CHAT_ID,
                     photo=image_url,
                     caption=caption,
                     parse_mode="Markdown",
@@ -83,7 +83,7 @@ async def send_morning_news(bot: Bot):
                 )
             else:
                 await bot.send_message(
-                    chat_id=GROUP_CHAT_ID,
+                    chat_id=CHAT_ID,
                     text=caption,
                     parse_mode="Markdown",
                     disable_web_page_preview=True,
@@ -128,7 +128,7 @@ async def send_morning_news(bot: Bot):
 
         for text in parts:
             await bot.send_message(
-                MADRID_GROUP_ID,
+                CHAT_ID,
                 text,
                 parse_mode="Markdown",
                 disable_web_page_preview=True,
