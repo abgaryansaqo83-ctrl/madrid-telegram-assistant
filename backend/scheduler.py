@@ -19,7 +19,7 @@ from backend.ai.traffic import madrid_morning_traffic
 logger = logging.getLogger(__name__)
 
 # 📌 Madrid Telegram group/chat ID
-MADRID_GROUP_ID = -1003433432009  # override env-ով եթե պետք լինի
+CHAT_ID = -1003433432009  # override env-ով եթե պետք լինի
 
 # 📌 Madrid time zone
 MADRID_TZ = pytz.timezone("Europe/Madrid")
