@@ -165,6 +165,8 @@ def _save_event_to_db(ev: Event) -> None:
         conn = _get_conn()
         cur = conn.cursor()
 
+        today = _today_str()  # 👈 ֆիքսված այսօր
+
         cur.execute(
             """
             INSERT INTO madrid_events 
@@ -179,7 +181,7 @@ def _save_event_to_db(ev: Event) -> None:
                 ev.get("title", ""),
                 ev.get("place", ""),
                 ev.get("time", ""),
-                ev.get("date", _today_str()),
+                today,                      # 👈 էստեղ այլևս ev["date"] չենք օգտագործում
                 ev.get("category", ""),
                 ev.get("source_url", ""),
                 ev.get("address", ""),
@@ -193,29 +195,29 @@ def _save_event_to_db(ev: Event) -> None:
     except Exception as e:
         logger.error(f"Error saving event to DB: {e}", exc_info=True)
 
-
 def refresh_madrid_events_for_today() -> None:
     """
-    Հիմա՝ մաքրում է այսօրվա madrid_events row-երը
-    և լցնում նորերը միայն cinema (Taquilla) աղբյուրից.
+    Ամեն գիշեր.
+    - Ջնջում է մինչև այսօրը ներառյալ նախորդ օրերի events-ները.
+    - Քաշում է այսօրվա համար նոր events (cinema, հետո theatre/restaurants...):
     """
     today = _today_str()
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM madrid_events WHERE date = %s;", (today,))
+        # ջնջենք միայն նախորդ օրերը, այսօրը և ապագան թողնենք
+        cur.execute("DELETE FROM madrid_events WHERE date < %s;", (today,))
         conn.commit()
         conn.close()
-        logger.info("Cleared today's madrid_events before refresh")
+        logger.info("Cleared past madrid_events before refresh")
     except Exception as e:
-        logger.error(f"Error clearing today's events: {e}", exc_info=True)
+        logger.error(f"Error clearing past events: {e}", exc_info=True)
 
-    # Cinema – Taquilla
+    # Cinema – Taquilla (միայն այսօր)
     for ev in fetch_madrid_cinema_events(limit=30):
         _save_event_to_db(ev)
 
     logger.info("Refreshed madrid_events for today (cinema only)")
-
 
 if __name__ == "__main__":
     refresh_madrid_events_for_today()
