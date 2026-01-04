@@ -19,6 +19,7 @@ Event = Dict[str, str]
 
 # Կինո – միայն Taquilla cartelera Madrid
 TAQUILLA_CARTELERA_MADRID_URL = "https://www.taquilla.com/cartelera/madrid"
+TAQUILLA_THEATRE_LIST_URL = "https://www.taquilla.com/espectaculos/teatro/madrid"
 
 # Թատրոն / քաղաքային / ռեստորան – հիմա դատարկ placeholders,
 # հետո երբ աղբյուր գտնենք, URL-ներ կմատուցենք այստեղ
@@ -134,14 +135,133 @@ def fetch_madrid_cinema_events(limit: int = 30) -> List[Event]:
 
     return events
 
+def _parse_taquilla_date(date_str: str) -> str:
+    """
+    '04 Ene' տեսակի օրերից ISO 'YYYY-MM-DD' կառուցելու helper,
+    fallback՝ այսօր, եթե չստացվեր parse անել։
+    """
+    date_str = date_str.strip()
+    # Taquilla already gives ISO in meta[startDate], so this is fallback only
+    try:
+        # Օրինակ '2026-01-04'
+        dt = datetime.fromisoformat(date_str)
+        return dt.date().isoformat()
+    except Exception:
+        return _today_str()
+
+
+def fetch_taquilla_theatre_events_from_list(url: str, limit: int = 20) -> List[Event]:
+    """
+    Քաշում է theatre event-ներ Taquilla theatre list էջից
+    (https://www.taquilla.com/espectaculos/teatro/madrid).
+
+    Վերցնում ենք.
+      - title
+      - theatre/place
+      - address
+      - date (startDate)
+      - time (առաջին ցուցված ժամ)
+      - price (lowPrice կամ «desde X,00€» տեքստը)
+      - image_url
+      - source_url
+    """
+    soup = _http_get(url)
+    if not soup:
+        return []
+
+    events: List[Event] = []
+
+    # Յուրաքանչյուր event գալիս է որպես <li itemscope itemtype="https://schema.org/TheaterEvent">
+    for li in soup.find_all("li", itemtype="https://schema.org/TheaterEvent"):
+        if len(events) >= limit:
+            break
+
+        # Title
+        name_meta = li.find("meta", itemprop="name")
+        title = name_meta["content"].strip() if name_meta and name_meta.has_attr("content") else "Sin título"
+
+        # Source URL (event URL)
+        url_meta = li.find("meta", itemprop="url")
+        source_url = url_meta["content"].strip() if url_meta and url_meta.has_attr("content") else url
+
+        # Image
+        img_meta = li.find("meta", itemprop="image")
+        image_url = img_meta["content"].strip() if img_meta and img_meta.has_attr("content") else ""
+
+        # Location / theatre name
+        location = li.find(attrs={"itemprop": "location"})
+        place = ""
+        address = ""
+        if location:
+            loc_name = location.find("meta", itemprop="name")
+            if loc_name and loc_name.has_attr("content"):
+                place = loc_name["content"].strip()
+
+            addr = location.find(attrs={"itemprop": "address"})
+            if addr:
+                street = addr.find("meta", itemprop="streetAddress")
+                if street and street.has_attr("content"):
+                    address = street["content"].strip()
+
+        # Date (startDate)
+        date_meta = li.find("meta", itemprop="startDate")
+        date_iso = _today_str()
+        if date_meta and date_meta.has_attr("content"):
+            date_iso = _parse_taquilla_date(date_meta["content"])
+
+        # Time (առաջին ժամից)
+        time_div = li.select_one(".ent-results-list-hour-time span")
+        start_time = time_div.get_text(strip=True) if time_div else ""
+
+        # Price
+        price_text = ""
+        price_meta = li.find("meta", itemprop="lowPrice")
+        if price_meta and price_meta.has_attr("content"):
+            price_text = f"{price_meta['content']}€"
+        else:
+            price_span = li.select_one(".ent-results-list-hour-price span")
+            if price_span:
+                price_text = price_span.get_text(strip=True)
+
+        ev: Event = {
+            "title": title,
+            "place": place or "Teatro en Madrid",
+            "time": start_time,
+            "date": date_iso,
+            "category": "theatre",
+            "source_url": source_url,
+            # optional extra fields if DB later supports them
+            "image_url": image_url,
+            "address": address,
+            "price": price_text,
+        }
+
+        events.append(ev)
+
+    return events
 
 # ==========================
 #  ԴՐՈՒՅԱԹԱՐ ԹԱՏՐՈՆ / ՔԱՂԱՔ / ՌԵՍՏՈ
 # ==========================
 
 def fetch_madrid_theatre_events(limit: int = 20) -> List[Event]:
-    # հիմա ոչինչ չի քաշում, թող լինի placeholder
-    return []
+    events: List[Event] = []
+
+    # 1) Taquilla theatre list (ամենահարստացված տվյալները՝ նկար, ժամ, գին)
+    taquilla_events = fetch_taquilla_theatre_events_from_list(
+        TAQUILLA_THEATRE_LIST_URL, limit=limit
+    )
+    events.extend(taquilla_events)
+
+    # 2) Քո հին THEATRE_URLS աղբյուրները՝ եթե դեռ տեղ կա
+    for url in THEATRE_URLS:
+        if len(events) >= limit:
+            break
+        ev = _scrape_theatre_event(url)
+        if ev:
+            events.append(ev)
+
+    return events[:limit]
 
 
 def fetch_madrid_city_events(limit: int = 20) -> List[Event]:
