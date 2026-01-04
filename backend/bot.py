@@ -12,6 +12,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
 
 from backend.ai.bot_ai import ask_city_bot
@@ -28,6 +29,7 @@ from backend.matching import (
     is_housing_request,
 )
 from backend.events import get_upcoming_cinema_events
+from backend.events import _get_conn
 from backend.ai.response import QuestionAutoResponder
 from backend.ai.traffic import madrid_morning_traffic
 from backend.news import (
@@ -72,16 +74,38 @@ main_menu_keyboard = ReplyKeyboardMarkup(
 
 news_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [
-            KeyboardButton(text="🎬 Кино / Cine"),
-            KeyboardButton(text="🎭 Театр / Teatro"),
-        ],
-        [KeyboardButton(text="🍷 Бары и рестораны / Bares y restaurantes")],
-        [KeyboardButton(text="🎉 Мероприятия / Eventos")],
-        [KeyboardButton(text="⬅️ В меню / Al menú")],
+        [KeyboardButton(text="🎬 Кино"), KeyboardButton(text="🎭 Шоу и театр в Мадриде")],
+        [KeyboardButton(text="🍷 Бары и рестораны")],
+        [KeyboardButton(text="🎉 Мероприятия")],
+        [KeyboardButton(text="⬅️ В меню")],
     ],
     resize_keyboard=True,
 )
+
+def _build_madrid_show_keyboard() -> InlineKeyboardMarkup:
+    kb = [
+        [
+            InlineKeyboardButton(text="🎭 Театр", callback_data="madrid_show:theatre"),
+            InlineKeyboardButton(text="🎵 Мюзиклы", callback_data="madrid_show:musical"),
+        ],
+        [
+            InlineKeyboardButton(text="👶 Для детей", callback_data="madrid_show:kids"),
+            InlineKeyboardButton(text="🎪 Цирк", callback_data="madrid_show:circo"),
+        ],
+        [
+            InlineKeyboardButton(text="💃 Фламенко", callback_data="madrid_show:flamenco"),
+            InlineKeyboardButton(text="🎼 Опера и классика", callback_data="madrid_show:opera"),
+        ],
+        [
+            InlineKeyboardButton(text="🩰 Танец и балет", callback_data="madrid_show:dance"),
+            InlineKeyboardButton(text="😂 Юмор / монологи", callback_data="madrid_show:comedy"),
+        ],
+        [
+            InlineKeyboardButton(text="🎩 Магия", callback_data="madrid_show:magic"),
+            InlineKeyboardButton(text="🎟 Другие шоу", callback_data="madrid_show:other"),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
 
 
 # ==========================
@@ -305,22 +329,17 @@ async def news_cinema(message: types.Message):
         logger.error(f"Cinema news error: {e}", exc_info=True)
         await message.answer("🎬 Раздел «Кино» временно недоступен.")
 
-@dp.message(F.text == "🎭 Театр / Teatro")
+@dp.message(F.text == "🎭 Шоу и театр в Мадриде")
 async def news_theatre(message: types.Message):
-    try:
-        theatre = build_theatre_message(max_items=2)
-        if not theatre:
-            await message.answer("🎭 На сегодня не найдено театральных событий.")
-            return
-
-        await message.answer(
-            theatre,
-            parse_mode="Markdown",
-            disable_web_page_preview=True,
-        )
-    except Exception as e:
-        logger.error(f"Theatre news error: {e}", exc_info=True)
-        await message.answer("🎭 Раздел «Театр» временно недоступен.")
+    text = (
+        "🎭 *Шоу и театр в Мадриде*\\n\\n"
+        "Выберите категорию ниже, чтобы увидеть ближайшие события."
+    )
+    await message.answer(
+        text,
+        parse_mode="Markdown",
+        reply_markup=_build_madrid_show_keyboard(),
+    )
 
 
 @dp.message(F.text == "🍷 Бары и рестораны / Bares y restaurantes")
