@@ -32,6 +32,8 @@ scheduler = AsyncIOScheduler(timezone=MADRID_TZ)
 #  MORNING DIGEST JOB
 # ==========================
 async def send_morning_news(bot: Bot):
+    parts = []
+
     try:
         # 1) Header որպես text
         header = "📬 *Обзор дня в Мадриде*"
@@ -42,7 +44,7 @@ async def send_morning_news(bot: Bot):
             disable_web_page_preview=True,
         )
 
-        # 2) Կինո՝ նույն քարտերով, ինչ «🎬 Кино / Cine» մենյուում
+        # 2) Кино — նույն քարտերով, ինչ «🎬 Кино» մենյուում
         events = get_upcoming_cinema_events(limit=2)
 
         for e in events:
@@ -55,11 +57,11 @@ async def send_morning_news(bot: Bot):
             # հասցեն բաժանում ենք, որ չկտրվի
             address_lines = []
             if address:
-                parts = [p.strip() for p in address.split(",") if p.strip()]
-                if parts:
-                    address_lines.append(f"📍 {parts[0]}")
-                    if len(parts) > 1:
-                        rest = ", ".join(parts[1:])
+                addr_parts = [p.strip() for p in address.split(",") if p.strip()]
+                if addr_parts:
+                    address_lines.append(f"📍 {addr_parts[0]}")
+                    if len(addr_parts) > 1:
+                        rest = ", ".join(addr_parts[1:])
                         address_lines.append(f"📍 {rest}")
 
             lines = []
@@ -74,12 +76,12 @@ async def send_morning_news(bot: Bot):
             caption = "\n".join(lines) if lines else "🎬 Кино"
 
             if image_url:
+                # ❗ Այստեղ այլևս չպետք է disable_web_page_preview
                 await bot.send_photo(
                     chat_id=CHAT_ID,
                     photo=image_url,
                     caption=caption,
                     parse_mode="Markdown",
-                    disable_web_page_preview=True,
                 )
             else:
                 await bot.send_message(
@@ -90,8 +92,10 @@ async def send_morning_news(bot: Bot):
                 )
 
     except Exception as e:
-        logger.error(f"Morning news error: {e}", exc_info=True)
+        logger.error(f"Morning news error (cinema/header): {e}", exc_info=True)
 
+    # Սկսում ենք մնացած բլոկները՝ անկախ cinema-ի error-ից
+    try:
         # 3. Рестораны и бары (մինչև 2 event)
         try:
             restaurants = build_restaurant_message(max_items=2)
@@ -126,6 +130,8 @@ async def send_morning_news(bot: Bot):
             logger.info("No morning messages to send (all blocks empty)")
             return
 
+        # Այստեղ parts-ը արդեն ամբողջական տեքստեր են՝
+        # ամեն մեկին մեկ մեսեջ
         for text in parts:
             await bot.send_message(
                 CHAT_ID,
@@ -137,7 +143,8 @@ async def send_morning_news(bot: Bot):
         logger.info("✅ Morning digest sent (%d messages)", len(parts))
 
     except Exception as e:
-        logger.error("❌ Morning news error: %s", e, exc_info=True)
+        logger.error("❌ Morning news error (blocks send): %s", e, exc_info=True)
+
 
 # ==========================
 #  SCHEDULER CONTROL
