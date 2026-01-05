@@ -432,6 +432,58 @@ async def _fetch_events_by_category(category: str, limit: int = 3):
         )
     return events
 
+@dp.callback_query(F.data.startswith("madrid_show:"))
+async def handle_madrid_show_callback(callback: types.CallbackQuery):
+    _, slug = callback.data.split(":", 1)
+    label = CATEGORY_LABELS.get(slug, "Шоу")
+
+    events = await _fetch_events_by_category(slug, limit=3)
+
+    if not events:
+        await callback.message.edit_text(
+            f"{label}:\n\nПока нет актуальных событий в этой категории.",
+            parse_mode="Markdown",
+            reply_markup=_build_madrid_show_keyboard(),
+        )
+        await callback.answer()
+        return
+
+    blocks = []
+    for ev in events:
+        lines = []
+        title = ev["title"]
+        place = ev["place"]
+        date = ev["date"]
+        time = ev["time"]
+        address = ev["address"]
+        price = ev["price"]
+        link = ev["link"]
+
+        if title:
+            lines.append(f"*{title}*")
+        if place:
+            lines.append(f"📍 {place}")
+        if address:
+            lines.append(f"📍 {address}")
+        if date or time:
+            lines.append(f"📅 {date}  ⏰ {time}")
+        if price:
+            lines.append(f"💶 {price}")
+        if link:
+            lines.append(f"🔗 [Подробнее]({link})")
+
+        blocks.append("\n".join(lines))
+
+    text = f"{label}:\n\n" + "\n\n".join(blocks)
+
+    await callback.message.edit_text(
+        text,
+        parse_mode="Markdown",
+        disable_web_page_preview=True,
+        reply_markup=_build_madrid_show_keyboard(),
+    )
+    await callback.answer()
+
 # ==========================
 #  👨‍💼 АДМИН — FEEDBACK
 # ==========================
