@@ -441,7 +441,7 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
 
     if slug == "back":
         text = (
-            "🎭 *Шоу и театр в Мадриде*\n\n"
+            "🎭 *Шоу и театр в Мадриде* — "
             "Выберите категорию ниже, чтобы увидеть ближайшие события."
         )
         await callback.message.edit_text(
