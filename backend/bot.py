@@ -77,7 +77,7 @@ news_keyboard = ReplyKeyboardMarkup(
         [KeyboardButton(text="🎬 Кино"), KeyboardButton(text="🎭 Шоу и театр в Мадриде")],
         [KeyboardButton(text="🍷 Бары и рестораны")],
         [KeyboardButton(text="🎉 Мероприятия")],
-        [KeyboardButton(text="⬅️ В меню")],
+        [KeyboardButton(text="⬅️ Назад")],
     ],
     resize_keyboard=True,
 )
@@ -103,6 +103,9 @@ def _build_madrid_show_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="🎩 Магия", callback_data="madrid_show:magic"),
             InlineKeyboardButton(text="🎟 Другие шоу", callback_data="madrid_show:other"),
+        ],
+        [
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="madrid_show:back"),
         ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
@@ -229,7 +232,7 @@ async def news_menu(message: types.Message):
     )
 
 
-@dp.message(F.text == "⬅️ В меню / Al menú")
+@dp.message(F.text == "⬅️ Назад")
 async def back_to_menu(message: types.Message):
     await message.answer(
         "Главное меню:",
@@ -268,7 +271,7 @@ async def news_cmd(message: types.Message):
     logger.info(f"User {message.from_user.id} requested news")
 
 
-@dp.message(F.text == "🎬 Кино / Cine")
+@dp.message(F.text == "🎬 Кино")
 async def news_cinema(message: types.Message):
     try:
         events = get_upcoming_cinema_events(limit=2)
@@ -332,7 +335,7 @@ async def news_cinema(message: types.Message):
 @dp.message(F.text == "🎭 Шоу и театр в Мадриде")
 async def news_theatre(message: types.Message):
     text = (
-        "🎭 *Шоу и театр в Мадриде*\\n\\n"
+        "🎭 *Шоу и театр в Мадриде*" 
         "Выберите категорию ниже, чтобы увидеть ближайшие события."
     )
     await message.answer(
@@ -435,22 +438,34 @@ async def _fetch_events_by_category(category: str, limit: int = 3):
 @dp.callback_query(F.data.startswith("madrid_show:"))
 async def handle_madrid_show_callback(callback: types.CallbackQuery):
     _, slug = callback.data.split(":", 1)
-    label = CATEGORY_LABELS.get(slug, "Шоу")
 
-    events = await _fetch_events_by_category(slug, limit=3)
-
-    if not events:
+    if slug == "back":
+        text = (
+            "🎭 *Шоу и театр в Мадриде*\n\n"
+            "Выберите категорию ниже, чтобы увидеть ближайшие события."
+        )
         await callback.message.edit_text(
-            f"{label}:\n\nПока нет актуальных событий в этой категории.",
+            text,
             parse_mode="Markdown",
             reply_markup=_build_madrid_show_keyboard(),
         )
         await callback.answer()
         return
 
-    blocks = []
+    label = CATEGORY_LABELS.get(slug, "Шоу")
+    events = await _fetch_events_by_category(slug, limit=3)
+
+    if not events:
+        await callback.answer("Пока нет событий в этой категории.", show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        f"{label}:",
+        parse_mode="Markdown",
+        reply_markup=_build_madrid_show_keyboard(),
+    )
+
     for ev in events:
-        lines = []
         title = ev["title"]
         place = ev["place"]
         date = ev["date"]
@@ -458,7 +473,9 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
         address = ev["address"]
         price = ev["price"]
         link = ev["link"]
+        image_url = ev["image_url"]
 
+        lines = []
         if title:
             lines.append(f"*{title}*")
         if place:
@@ -472,16 +489,22 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
         if link:
             lines.append(f"🔗 [Подробнее]({link})")
 
-        blocks.append("\n".join(lines))
+        caption = "\n".join(lines) if lines else label
 
-    text = f"{label}:\n\n" + "\n\n".join(blocks)
+        if image_url:
+            await callback.message.answer_photo(
+                photo=image_url,
+                caption=caption,
+                parse_mode="Markdown",
+                disable_web_page_preview=True,
+            )
+        else:
+            await callback.message.answer(
+                caption,
+                parse_mode="Markdown",
+                disable_web_page_preview=True,
+            )
 
-    await callback.message.edit_text(
-        text,
-        parse_mode="Markdown",
-        disable_web_page_preview=True,
-        reply_markup=_build_madrid_show_keyboard(),
-    )
     await callback.answer()
 
 # ==========================
