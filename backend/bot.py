@@ -453,7 +453,7 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
         return
 
     label = CATEGORY_LABELS.get(slug, "Шоу")
-    events = await _fetch_events_by_category(slug, limit=3)
+    events = await _fetch_events_by_category(slug, limit=2)
 
     if not events:
         await callback.answer("Пока нет событий в этой категории.", show_alert=True)
@@ -462,7 +462,7 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
     await callback.message.edit_text(
         f"{label}:",
         parse_mode="Markdown",
-        reply_markup=_build_madrid_show_keyboard(),
+        reply_markup=None,
     )
 
     for ev in events:
@@ -472,7 +472,6 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
         time = ev["time"]
         address = ev["address"]
         price = ev["price"]
-        link = ev["link"]
         image_url = ev["image_url"]
 
         lines = []
@@ -486,8 +485,6 @@ async def handle_madrid_show_callback(callback: types.CallbackQuery):
             lines.append(f"📅 {date}  ⏰ {time}")
         if price:
             lines.append(f"💶 {price}")
-        if link:
-            lines.append(f"🔗 [Подробнее]({link})")
 
         caption = "\n".join(lines) if lines else label
 
