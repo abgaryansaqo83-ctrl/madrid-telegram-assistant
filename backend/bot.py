@@ -104,9 +104,6 @@ def _build_madrid_show_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🎩 Магия", callback_data="madrid_show:magic"),
             InlineKeyboardButton(text="🎟 Другие шоу", callback_data="madrid_show:other"),
         ],
-        [
-            InlineKeyboardButton(text="⬅️ Назад", callback_data="madrid_show:back"),
-        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
