@@ -17,13 +17,23 @@ Event = Dict[str, str]
 #  SOURCE URL-ՆԵՐ
 # ==========================
 
-# Կինո – միայն Taquilla cartelera Madrid
+# 🎬 Կինո – Taquilla cartelera Madrid
 TAQUILLA_CARTELERA_MADRID_URL = "https://www.taquilla.com/cartelera/madrid"
-TAQUILLA_THEATRE_LIST_URL = "https://www.taquilla.com/espectaculos/teatro/madrid"
 
-# Թատրոն / քաղաքային / ռեստորան – հիմա դատարկ placeholders,
-# հետո երբ աղբյուր գտնենք, URL-ներ կմատուցենք այստեղ
-THEATRE_URLS: list[str] = []
+# 🎭 Շոու / թատրոն / մյուզիքլ / և այլն — Taquilla espectáculos en Madrid
+TAQUILLA_SHOW_CATEGORIES = {
+    "theatre": "https://www.taquilla.com/espectaculos/teatro/madrid",
+    "musical": "https://www.taquilla.com/espectaculos/musicales/madrid",
+    "comedy": "https://www.taquilla.com/espectaculos/humor-monologos/madrid",
+    "magic": "https://www.taquilla.com/espectaculos/magia/madrid",
+    "kids": "https://www.taquilla.com/espectaculos/ninos/madrid",
+    "circo": "https://www.taquilla.com/espectaculos/circo/madrid",
+    "flamenco": "https://www.taquilla.com/espectaculos/flamenco/madrid",
+    "opera": "https://www.taquilla.com/espectaculos/clasica/madrid",
+    "dance": "https://www.taquilla.com/espectaculos/danza/madrid",
+    "other": "https://www.taquilla.com/espectaculos/otros-espectaculos/madrid",
+}
+
 CITY_EVENT_URLS: list[str] = []
 RESTAURANT_EVENT_URLS: list[str] = []
 
@@ -135,33 +145,37 @@ def fetch_madrid_cinema_events(limit: int = 30) -> List[Event]:
 
     return events
 
-def _parse_taquilla_date(date_str: str) -> str:
+
+# ==========================
+#  TAQUILLA MOSAIC SHOW PAGES
+# ==========================
+
+def _parse_taquilla_mosaic_date_range(date_text: str) -> str:
     """
-    '04 Ene' տեսակի օրերից ISO 'YYYY-MM-DD' կառուցելու helper,
-    fallback՝ այսօր, եթե չստացվեր parse անել։
+    Mosaic картերում օրը գալիս է որպես:
+      'Del <span>01-03-2026</span> al <span>04-01-2026</span>'
+    Վերադարձնում է start date ISO-ով (YYYY-MM-DD) կամ այսօր:
     """
-    date_str = date_str.strip()
-    # Taquilla already gives ISO in meta[startDate], so this is fallback only
     try:
-        # Օրինակ '2026-01-04'
-        dt = datetime.fromisoformat(date_str)
-        return dt.date().isoformat()
+        parts = date_text.split()
+        for p in parts:
+            if "-" in p and len(p) == 10:
+                day, month, year = p.split("-")
+                dt = datetime(int(year), int(month), int(day))
+                return dt.date().isoformat()
     except Exception:
-        return _today_str()
+        pass
+    return _today_str()
 
 
-def fetch_taquilla_theatre_events_from_list(url: str, limit: int = 20) -> List[Event]:
+def fetch_taquilla_show_category(url: str, category_slug: str, limit: int = 20) -> List[Event]:
     """
-    Քաշում է theatre event-ներ Taquilla theatre list էջից
-    (https://www.taquilla.com/espectaculos/teatro/madrid).
-
-    Վերցնում ենք.
+    Քաշում է մինչև `limit` շոու Taquilla-ի որևէ «espectaculos/.../madrid» էջից
+    (Musicales, Teatro, Ninos, Circo, Flamenco և այլն):
       - title
-      - theatre/place
-      - address
-      - date (startDate)
-      - time (առաջին ցուցված ժամ)
-      - price (lowPrice կամ «desde X,00€» տեքստը)
+      - date (սկզբի օր)
+      - place (եթե կա)
+      - price (Desde X,00€)
       - image_url
       - source_url
     """
@@ -171,107 +185,62 @@ def fetch_taquilla_theatre_events_from_list(url: str, limit: int = 20) -> List[E
 
     events: List[Event] = []
 
-    # Յուրաքանչյուր event գալիս է որպես <li itemscope itemtype="https://schema.org/TheaterEvent">
-    for li in soup.find_all("li", itemtype="https://schema.org/TheaterEvent"):
+    for box in soup.select("div.d-mosaic__box"):
         if len(events) >= limit:
             break
 
-        # Title
-        name_meta = li.find("meta", itemprop="name")
-        title = name_meta["content"].strip() if name_meta and name_meta.has_attr("content") else "Sin título"
+        # Նկար
+        img = box.select_one(".d-mosaic__thumb img.d-mosaic__img")
+        image_url = (img.get("data-src") or img.get("src") or "").strip() if img else ""
 
-        # Source URL (event URL)
-        url_meta = li.find("meta", itemprop="url")
-        source_url = url_meta["content"].strip() if url_meta and url_meta.has_attr("content") else url
+        # Վերնագիր + event URL
+        title_tag = box.select_one("h3.d-mosaic__title a.anchor-text")
+        title = ""
+        source_url = ""
+        if title_tag:
+            # Տեքստը գալիս է "<span>Entradas</span>Название"
+            title = title_tag.get_text(strip=True).replace("Entradas", "").strip()
+            href = title_tag.get("href") or ""
+            if href and href.startswith("/"):
+                source_url = "https://www.taquilla.com" + href
+            else:
+                source_url = href.strip()
 
-        # Image
-        img_meta = li.find("meta", itemprop="image")
-        image_url = img_meta["content"].strip() if img_meta and img_meta.has_attr("content") else ""
-
-        # Location / theatre name
-        location = li.find(attrs={"itemprop": "location"})
+        # Քաղաք / place (եթե նշված է)
         place = ""
-        address = ""
-        if location:
-            loc_name = location.find("meta", itemprop="name")
-            if loc_name and loc_name.has_attr("content"):
-                place = loc_name["content"].strip()
+        tag_city = box.select_one(".d-mosaic__tags span")
+        if tag_city:
+            place = tag_city.get_text(strip=True)
 
-            addr = location.find(attrs={"itemprop": "address"})
-            if addr:
-                street = addr.find("meta", itemprop="streetAddress")
-                if street and street.has_attr("content"):
-                    address = street["content"].strip()
-
-        # Date (startDate)
-        date_meta = li.find("meta", itemprop="startDate")
+        # Ամսաթիվ range
+        date_div = box.select_one(".d-mosaic__date")
         date_iso = _today_str()
-        if date_meta and date_meta.has_attr("content"):
-            date_iso = _parse_taquilla_date(date_meta["content"])
+        if date_div:
+            date_iso = _parse_taquilla_mosaic_date_range(
+                date_div.get_text(" ", strip=True)
+            )
 
-        # Time (առաջին ժամից)
-        time_div = li.select_one(".ent-results-list-hour-time span")
-        start_time = time_div.get_text(strip=True) if time_div else ""
+        # Գին
+        price_div = box.select_one(".d-mosaic__c-btn")
+        price_text = price_div.get_text(strip=True) if price_div else ""
 
-        # Price
-        price_text = ""
-        price_meta = li.find("meta", itemprop="lowPrice")
-        if price_meta and price_meta.has_attr("content"):
-            price_text = f"{price_meta['content']}€"
-        else:
-            price_span = li.select_one(".ent-results-list-hour-price span")
-            if price_span:
-                price_text = price_span.get_text(strip=True)
+        if not title:
+            continue
 
         ev: Event = {
             "title": title,
-            "place": place or "Teatro en Madrid",
-            "time": start_time,
+            "place": place or "Madrid",
+            "time": "",  # Mosaic-ում час չկա, հետո եթե գտնենք՝ կավելացնենք
             "date": date_iso,
-            "category": "theatre",
+            "category": category_slug,
             "source_url": source_url,
-            # optional extra fields if DB later supports them
-            "image_url": image_url,
-            "address": address,
+            "address": "",
             "price": price_text,
+            "image_url": image_url,
         }
-
         events.append(ev)
 
     return events
-
-# ==========================
-#  ԴՐՈՒՅԱԹԱՐ ԹԱՏՐՈՆ / ՔԱՂԱՔ / ՌԵՍՏՈ
-# ==========================
-
-def fetch_madrid_theatre_events(limit: int = 20) -> List[Event]:
-    events: List[Event] = []
-
-    # 1) Taquilla theatre list (ամենահարստացված տվյալները՝ նկար, ժամ, գին)
-    taquilla_events = fetch_taquilla_theatre_events_from_list(
-        TAQUILLA_THEATRE_LIST_URL, limit=limit
-    )
-    events.extend(taquilla_events)
-
-    # 2) Քո հին THEATRE_URLS աղբյուրները՝ եթե դեռ տեղ կա
-    for url in THEATRE_URLS:
-        if len(events) >= limit:
-            break
-        ev = _scrape_theatre_event(url)
-        if ev:
-            events.append(ev)
-
-    return events[:limit]
-
-
-def fetch_madrid_city_events(limit: int = 20) -> List[Event]:
-    # placeholder մինչև նոր աղբյուր գտնենք
-    return []
-
-
-def fetch_madrid_restaurant_events(limit: int = 20) -> List[Event]:
-    # placeholder մինչև աղբյուր գտնենք
-    return []
 
 
 # ==========================
@@ -279,13 +248,17 @@ def fetch_madrid_restaurant_events(limit: int = 20) -> List[Event]:
 # ==========================
 
 def _save_event_to_db(ev: Event) -> None:
+    """
+    Գրանցում է event-ը madrid_events աղյուսակում.
+    date-ը պահում է ev["date"]-ով, եթե կա, ellers՝ այսօր:
+    """
     try:
         from backend.events import _get_conn
 
         conn = _get_conn()
         cur = conn.cursor()
 
-        today = _today_str()  # 👈 ֆիքսված այսօր
+        date_str = ev.get("date") or _today_str()
 
         cur.execute(
             """
@@ -301,7 +274,7 @@ def _save_event_to_db(ev: Event) -> None:
                 ev.get("title", ""),
                 ev.get("place", ""),
                 ev.get("time", ""),
-                today,                      # 👈 էստեղ այլևս ev["date"] չենք օգտագործում
+                date_str,
                 ev.get("category", ""),
                 ev.get("source_url", ""),
                 ev.get("address", ""),
@@ -315,17 +288,21 @@ def _save_event_to_db(ev: Event) -> None:
     except Exception as e:
         logger.error(f"Error saving event to DB: {e}", exc_info=True)
 
+
+# ==========================
+#  DAILY REFRESH
+# ==========================
+
 def refresh_madrid_events_for_today() -> None:
     """
     Ամեն գիշեր.
     - Ջնջում է մինչև այսօրը ներառյալ նախորդ օրերի events-ները.
-    - Քաշում է այսօրվա համար նոր events (cinema, հետո theatre/restaurants...):
+    - Քաշում է այսօրվա / ընթացիկ շոுனերը տարբեր կատեգորիաներից.
     """
     today = _today_str()
     try:
         conn = get_connection()
         cur = conn.cursor()
-        # ջնջենք միայն նախորդ օրերը, այսօրը և ապագան թողնենք
         cur.execute("DELETE FROM madrid_events WHERE date < %s;", (today,))
         conn.commit()
         conn.close()
@@ -333,11 +310,18 @@ def refresh_madrid_events_for_today() -> None:
     except Exception as e:
         logger.error(f"Error clearing past events: {e}", exc_info=True)
 
-    # Cinema – Taquilla (միայն այսօր)
+    # 🎬 Կինո – Taquilla cartelera (մինչև 30 ֆիլմ)
     for ev in fetch_madrid_cinema_events(limit=30):
         _save_event_to_db(ev)
 
-    logger.info("Refreshed madrid_events for today (cinema only)")
+    # 🎭 Շոու / թատրոն / մյուզիքլ / kids / և այլն — յուրաքանչյուրից մինչև 20 event
+    for category_slug, url in TAQUILLA_SHOW_CATEGORIES.items():
+        shows = fetch_taquilla_show_category(url, category_slug, limit=20)
+        for ev in shows:
+            _save_event_to_db(ev)
+
+    logger.info("Refreshed madrid_events for today (cinema + Taquilla shows)")
+
 
 if __name__ == "__main__":
     refresh_madrid_events_for_today()
