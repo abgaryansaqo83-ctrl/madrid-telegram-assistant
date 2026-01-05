@@ -341,6 +341,18 @@ async def news_theatre(message: types.Message):
         reply_markup=_build_madrid_show_keyboard(),
     )
 
+CATEGORY_LABELS = {
+    "theatre": "🎭 Театр",
+    "musical": "🎵 Мюзиклы",
+    "kids": "👶 Для детей",
+    "circo": "🎪 Цирк",
+    "flamenco": "💃 Фламенко",
+    "opera": "🎼 Опера и классика",
+    "dance": "🩰 Танец и балет",
+    "comedy": "😂 Юмор / монологи",
+    "magic": "🎩 Магия",
+    "other": "🎟 Другие шоу",
+}
 
 @dp.message(F.text == "🍷 Бары и рестораны / Bares y restaurantes")
 async def news_bars(message: types.Message):
@@ -382,6 +394,43 @@ async def news_events(message: types.Message):
     except Exception as e:
         logger.error(f"Events news error: {e}", exc_info=True)
         await message.answer("🎉 Раздел «Мероприятия» временно недоступен.")
+
+
+async def _fetch_events_by_category(category: str, limit: int = 3):
+    sql = """
+        SELECT title, place, date, start_time, source_url, address, price, image_url
+        FROM madrid_events
+        WHERE category = %s
+        ORDER BY date, start_time
+        LIMIT %s;
+    """
+    events = []
+    try:
+        conn = _get_conn()
+        cur = conn.cursor()
+        cur.execute(sql, (category, limit))
+        rows = cur.fetchall()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error fetching events for category={category}: {e}", exc_info=True)
+        return events
+
+    for title, place, date, start_time, source_url, address, price, image_url in rows:
+        date_str = str(date)
+        time_str = start_time or ""
+        events.append(
+            {
+                "title": title or "",
+                "place": place or "",
+                "date": date_str,
+                "time": time_str,
+                "link": source_url or "",
+                "address": address or "",
+                "price": price or "",
+                "image_url": image_url or "",
+            }
+        )
+    return events
 
 # ==========================
 #  👨‍💼 АДМИН — FEEDBACK
