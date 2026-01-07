@@ -3,7 +3,6 @@ import requests
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "CHANGE_ME"
 
-
 def _compute_speed_kmh(leg) -> float | None:
     """Возвращает среднюю скорость по участку в км/ч или None, если данных нет."""
     distance_m = leg.get("distance", {}).get("value")
